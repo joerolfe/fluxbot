@@ -19,17 +19,10 @@ function getChromiumPath() {
     } catch {}
   }
 
-  candidates.push(
-    "/usr/bin/chromium",
-    "/usr/bin/chromium-browser",
-    "/usr/bin/google-chrome",
-  );
+  candidates.push("/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome");
 
   for (const p of candidates) {
-    if (p && fs.existsSync(p)) {
-      console.log(`[FUTWIZ] Chromium at: ${p}`);
-      return p;
-    }
+    if (p && fs.existsSync(p)) return p;
   }
   return "chromium";
 }
@@ -50,32 +43,26 @@ async function searchPlayer(name) {
   const page = await browser.newPage();
   try {
     await page.setExtraHTTPHeaders({ "Accept-Language": "en-GB,en;q=0.9" });
-    await page.goto(`${BASE}/en/fc26/players`, { waitUntil: "networkidle2", timeout: 30000 });
 
-    // Find search input
+    // Navigate to search URL first so the SPA sets the search context
+    await page.goto(`${BASE}/en/fc26/players?search=${encodeURIComponent(name)}`, { waitUntil: "networkidle2", timeout: 30000 });
+
+    // Then find the search input and type to trigger the SPA filter
     const searchInput = await page.$('input[type="search"], input[type="text"][placeholder], input[name="search"], input[name="q"], input[name="s"]');
-    if (!searchInput) {
-      const inputs = await page.evaluate(() =>
-        Array.from(document.querySelectorAll("input")).map(i => ({ type: i.type, name: i.name, placeholder: i.placeholder, id: i.id, class: i.className }))
-      );
-      console.log("[FUTWIZ] Inputs found:", JSON.stringify(inputs));
-      return null;
+    if (searchInput) {
+      await searchInput.click({ clickCount: 3 });
+      await searchInput.type(name, { delay: 80 });
     }
 
-    await searchInput.click({ clickCount: 3 });
-    await searchInput.type(name, { delay: 80 });
-    await new Promise(r => setTimeout(r, 3000));
+    // Wait for filtered results to appear
+    await new Promise(r => setTimeout(r, 5000));
 
-    // Log everything visible after typing to find autocomplete structure
-    const afterType = await page.evaluate(() => {
-      const links = Array.from(document.querySelectorAll("a[href*='/player/']")).map(a => ({ href: a.getAttribute("href"), text: a.innerText.trim().slice(0, 50) })).slice(0, 10);
-      const buttons = Array.from(document.querySelectorAll("button, [role='option'], [class*='suggest'], [class*='autocomplete'], [class*='result'], [class*='dropdown'] a")).map(el => ({ tag: el.tagName, text: el.innerText.trim().slice(0, 50), class: el.className.slice(0, 60) })).slice(0, 10);
-      return { links, buttons };
-    });
-    // Match by name in href slug (e.g. "mbappe" in "/fc26/player/kylian-mbappe/22083")
     const normalized = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    const match = afterType.links.find(l => l.href.toLowerCase().includes(normalized)) || afterType.links[0];
-    const firstLink = match?.href;
+    const links = await page.evaluate(() =>
+      Array.from(document.querySelectorAll("a[href*='/player/']")).map(a => a.getAttribute("href"))
+    );
+
+    const firstLink = links.find(h => h.toLowerCase().includes(normalized)) || links[0];
     if (!firstLink) return null;
 
     const fullUrl = firstLink.startsWith("http") ? firstLink : `${BASE}${firstLink}`;
