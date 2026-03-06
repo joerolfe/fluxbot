@@ -63,8 +63,11 @@ async function fetchHtml(url) {
   const page = await browser.newPage();
   try {
     await page.setExtraHTTPHeaders({ "Accept-Language": "en-GB,en;q=0.9" });
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
-    return await page.content();
+    await page.goto(url, { waitUntil: "networkidle2", timeout: 30000 });
+    const html = await page.content();
+    console.log(`[FUTWIZ] Page loaded: ${url.slice(0, 80)}`);
+    console.log(`[FUTWIZ] Player links found: ${(html.match(/\/en\/fc26\/player\//g) || []).length}`);
+    return html;
   } finally {
     await page.close();
   }
