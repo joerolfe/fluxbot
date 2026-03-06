@@ -1,7 +1,11 @@
-const { EmbedBuilder } = require("discord.js");
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+
 module.exports = {
-  name: "squad",
-  async execute(message) {
+  data: new SlashCommandBuilder()
+    .setName("squad")
+    .setDescription("Recommended squads by budget"),
+
+  async execute(interaction) {
     const embed = new EmbedBuilder()
       .setColor(0x3B82F6)
       .setTitle("🏗️ Recommended Squads")
@@ -12,6 +16,7 @@ module.exports = {
         { name: "💰 200K+ — 4-3-3 / 4-2-3-1", value: "Build around your favourite attacker and fill in around them.", inline: false },
       )
       .setFooter({ text: "FluxFUT — updated every major content drop" });
-    await message.reply({ embeds: [embed] });
+
+    await interaction.reply({ embeds: [embed] });
   },
 };

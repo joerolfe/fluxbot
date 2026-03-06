@@ -1,33 +1,32 @@
-const { EmbedBuilder } = require("discord.js");
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 
 module.exports = {
-  name: "compare",
-  async execute(message, args) {
-    if (args.length < 2) return message.reply("Usage: `!compare [player1] vs [player2]` — e.g. `!compare Mbappe vs Ronaldo`");
+  data: new SlashCommandBuilder()
+    .setName("compare")
+    .setDescription("Compare two players on FUTBIN")
+    .addStringOption(opt =>
+      opt.setName("player1")
+        .setDescription("First player — e.g. Mbappe")
+        .setRequired(true))
+    .addStringOption(opt =>
+      opt.setName("player2")
+        .setDescription("Second player — e.g. Ronaldo")
+        .setRequired(true)),
 
-    const vsIndex = args.findIndex(a => a.toLowerCase() === "vs");
-    let p1Name, p2Name;
-    if (vsIndex > 0) {
-      p1Name = args.slice(0, vsIndex).join(" ");
-      p2Name = args.slice(vsIndex + 1).join(" ");
-    } else {
-      const mid = Math.ceil(args.length / 2);
-      p1Name = args.slice(0, mid).join(" ");
-      p2Name = args.slice(mid).join(" ");
-    }
-
-    if (!p1Name || !p2Name) return message.reply("Usage: `!compare [player1] vs [player2]`");
+  async execute(interaction) {
+    const p1 = interaction.options.getString("player1");
+    const p2 = interaction.options.getString("player2");
 
     const embed = new EmbedBuilder()
       .setColor(0x3B82F6)
-      .setTitle(`⚔️ ${p1Name} vs ${p2Name}`)
+      .setTitle(`⚔️ ${p1} vs ${p2}`)
       .setDescription("Click each player to compare stats and prices on FUTBIN:")
       .addFields(
-        { name: p1Name, value: `[View on FUTBIN](https://www.futbin.com/players?search=${encodeURIComponent(p1Name)})`, inline: true },
-        { name: p2Name, value: `[View on FUTBIN](https://www.futbin.com/players?search=${encodeURIComponent(p2Name)})`, inline: true },
+        { name: p1, value: `[View on FUTBIN](https://www.futbin.com/players?search=${encodeURIComponent(p1)})`, inline: true },
+        { name: p2, value: `[View on FUTBIN](https://www.futbin.com/players?search=${encodeURIComponent(p2)})`, inline: true },
       )
       .setFooter({ text: "FluxFUT • Open both links to compare" });
 
-    await message.reply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed] });
   },
 };

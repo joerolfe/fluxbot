@@ -1,10 +1,16 @@
-const { EmbedBuilder } = require("discord.js");
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 
 module.exports = {
-  name: "price",
-  async execute(message, args) {
-    if (!args.length) return message.reply("Usage: `!price [player name]` — e.g. `!price Mbappe`");
-    const player = args.join(" ");
+  data: new SlashCommandBuilder()
+    .setName("price")
+    .setDescription("Search for a player's price on FUTBIN")
+    .addStringOption(opt =>
+      opt.setName("player")
+        .setDescription("Player name — e.g. Mbappe")
+        .setRequired(true)),
+
+  async execute(interaction) {
+    const player = interaction.options.getString("player");
     const url = `https://www.futbin.com/players?search=${encodeURIComponent(player)}`;
 
     const embed = new EmbedBuilder()
@@ -13,6 +19,6 @@ module.exports = {
       .setDescription(`[Search on FUTBIN](${url})`)
       .setFooter({ text: "FluxFUT" });
 
-    await message.reply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed] });
   },
 };

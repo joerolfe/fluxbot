@@ -1,12 +1,23 @@
-const { PermissionFlagsBits } = require("discord.js");
+const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
+
 module.exports = {
-  name: "clear",
-  async execute(message, args) {
-    if (!message.member.roles.cache.has(process.env.ROLE_MOD) && !message.member.permissions.has(PermissionFlagsBits.ManageMessages)) return message.reply("❌ No permission.");
-    const amount = parseInt(args[0]);
-    if (isNaN(amount) || amount < 1 || amount > 100) return message.reply("Usage: `!clear [1-100]`");
-    await message.channel.bulkDelete(amount + 1, true);
-    const m = await message.channel.send(`🗑️ Deleted **${amount}** messages.`);
-    setTimeout(() => m.delete().catch(() => {}), 4000);
+  data: new SlashCommandBuilder()
+    .setName("clear")
+    .setDescription("Delete a number of messages from this channel")
+    .addIntegerOption(opt =>
+      opt.setName("amount")
+        .setDescription("Number of messages to delete (1-100)")
+        .setMinValue(1)
+        .setMaxValue(100)
+        .setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+
+  async execute(interaction) {
+    if (!interaction.member.roles.cache.has(process.env.ROLE_MOD) && !interaction.member.permissions.has(PermissionFlagsBits.ManageMessages))
+      return interaction.reply({ content: "❌ No permission.", flags: 64 });
+
+    const amount = interaction.options.getInteger("amount");
+    await interaction.channel.bulkDelete(amount, true);
+    await interaction.reply({ content: `🗑️ Deleted **${amount}** messages.`, flags: 64 });
   },
 };

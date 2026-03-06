@@ -1,9 +1,15 @@
+const { SlashCommandBuilder } = require("discord.js");
+
 module.exports = {
-  name: "verify",
-  async execute(message, args, client) {
-    const email = args[0];
-    if (!email || !email.includes("@")) return message.reply("Usage: `!verify your@email.com`");
-    await message.delete().catch(() => {});
-    await message.author.send("⚠️ Verification is not fully configured yet. Please DM a mod for Premium access.").catch(() => {});
+  data: new SlashCommandBuilder()
+    .setName("verify")
+    .setDescription("Link your Whop Premium purchase to Discord")
+    .addStringOption(opt =>
+      opt.setName("email")
+        .setDescription("Email used to purchase on Whop")
+        .setRequired(true)),
+
+  async execute(interaction) {
+    await interaction.reply({ content: "⚠️ Verification is not fully configured yet. Please DM a mod for Premium access.", flags: 64 });
   },
 };

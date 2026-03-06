@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require("discord.js");
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 
 const formations = {
   "4231": new EmbedBuilder()
@@ -33,11 +33,20 @@ const formations = {
 };
 
 module.exports = {
-  name: "tactics",
-  async execute(message, args) {
-    const key = (args[0] || "4231").replace(/-/g, "");
-    const embed = formations[key] || formations["4231"];
-    const note = formations[key] ? "" : "\n*Formation not found — showing 4-2-3-1. Options: `4231`, `433`, `523`*";
-    await message.reply({ embeds: [embed], content: note || undefined });
+  data: new SlashCommandBuilder()
+    .setName("tactics")
+    .setDescription("Get meta tactics for a formation")
+    .addStringOption(opt =>
+      opt.setName("formation")
+        .setDescription("Formation to view (default: 4231)")
+        .addChoices(
+          { name: "4-2-3-1 Narrow (S-Tier)", value: "4231" },
+          { name: "4-3-3 Attack (High Scoring)", value: "433" },
+          { name: "5-2-3 (Best Defensive)", value: "523" },
+        )),
+
+  async execute(interaction) {
+    const key = interaction.options.getString("formation") || "4231";
+    await interaction.reply({ embeds: [formations[key]] });
   },
 };
