@@ -49,7 +49,7 @@ module.exports = {
       const embed = new EmbedBuilder()
         .setColor(0x3B82F6)
         .setTitle(`🔍 ${player}`)
-        .setDescription(`[FUTBIN](${searchUrl}) • [FUTWIZ](https://www.futwiz.com/en/fc26/players?search=${encodeURIComponent(player)})`)
+        .setDescription(`[Search on FUTBIN](${searchUrl})`)
         .setFooter({ text: "FluxFUT" });
       await message.reply({ embeds: [embed] });
     }
