@@ -1,57 +1,38 @@
 const { EmbedBuilder } = require("discord.js");
-
-async function fetchPlayer(name) {
-  const res = await fetch(`https://www.futbin.com/search?year=26&term=${encodeURIComponent(name)}`, {
-    headers: { "User-Agent": "Mozilla/5.0" },
-  });
-  if (!res.ok) throw new Error("API error");
-  return res.json();
-}
+const { searchPlayer } = require("../utils/futdb");
 
 module.exports = {
   name: "price",
   async execute(message, args) {
     if (!args.length) return message.reply("Usage: `!price [player name]` — e.g. `!price Mbappe`");
-    const player = args.join(" ");
-    const searchUrl = `https://www.futbin.com/players?search=${encodeURIComponent(player)}`;
+    const query = args.join(" ");
 
     try {
-      const data = await fetchPlayer(player);
-      if (!Array.isArray(data) || !data.length) {
-        return message.reply({ embeds: [new EmbedBuilder().setColor(0x3B82F6)
-          .setTitle(`🔍 ${player}`)
-          .setDescription(`No results found. [Search manually on FUTBIN](${searchUrl})`)
-          .setFooter({ text: "FluxFUT" })] });
-      }
+      const p = await searchPlayer(query);
 
-      const p = data[0];
-      const name = p.Player || p.name || player;
-      const rating = p.Rating || p.rating || "?";
-      const position = p.Position || p.position || "?";
-      const ps = p.ps_price ? `${Number(p.ps_price).toLocaleString()} coins` : "N/A";
-      const xbox = p.xbox_price ? `${Number(p.xbox_price).toLocaleString()} coins` : "N/A";
-      const pc = p.pc_price ? `${Number(p.pc_price).toLocaleString()} coins` : "N/A";
+      const stat = (v) => v != null ? `**${v}**` : "N/A";
+      const price = (v) => v != null ? `${Number(v).toLocaleString()} coins` : "N/A";
 
       const embed = new EmbedBuilder()
         .setColor(0x3B82F6)
-        .setTitle(`${rating} ${name} — ${position}`)
+        .setTitle(`${p.rating ?? "?"} ${p.name ?? query} — ${p.position ?? "?"}`)
         .addFields(
-          { name: "🎮 PS", value: ps, inline: true },
-          { name: "🎮 Xbox", value: xbox, inline: true },
-          { name: "💻 PC", value: pc, inline: true },
-          { name: "🔗 Full Card", value: `[View on FUTBIN](${searchUrl})`, inline: false },
+          { name: "⚡ PAC", value: stat(p.pace), inline: true },
+          { name: "🎯 SHO", value: stat(p.shooting), inline: true },
+          { name: "🎁 PAS", value: stat(p.passing), inline: true },
+          { name: "🕹️ DRI", value: stat(p.dribbling), inline: true },
+          { name: "🛡️ DEF", value: stat(p.defending), inline: true },
+          { name: "💪 PHY", value: stat(p.physicality), inline: true },
+          { name: "💰 PS Price", value: price(p.pricePs4 ?? p.ps4Price ?? p.price?.ps4), inline: true },
+          { name: "💰 Xbox Price", value: price(p.priceXbox ?? p.xboxPrice ?? p.price?.xbox), inline: true },
+          { name: "💰 PC Price", value: price(p.pricePc ?? p.pcPrice ?? p.price?.pc), inline: true },
         )
-        .setFooter({ text: "Prices from FUTBIN • FluxFUT" })
+        .setFooter({ text: "Data from FUTDB • FluxFUT" })
         .setTimestamp();
 
       await message.reply({ embeds: [embed] });
-    } catch {
-      const embed = new EmbedBuilder()
-        .setColor(0x3B82F6)
-        .setTitle(`🔍 ${player}`)
-        .setDescription(`[Search on FUTBIN](${searchUrl})`)
-        .setFooter({ text: "FluxFUT" });
-      await message.reply({ embeds: [embed] });
+    } catch (e) {
+      await message.reply(`❌ ${e.message || "Something went wrong. Check the player name and try again."}`);
     }
   },
 };
