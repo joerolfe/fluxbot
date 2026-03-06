@@ -1,21 +1,43 @@
-const axios   = require("axios");
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const cheerio = require("cheerio");
 
-const HEADERS = {
-  "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-    "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-  "Accept-Language": "en-GB,en;q=0.9",
-  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-  Referer: "https://www.futwiz.com/",
-};
+puppeteer.use(StealthPlugin());
 
 const BASE = "https://www.futwiz.com";
+let _browser = null;
+
+async function getBrowser() {
+  if (!_browser || !_browser.isConnected()) {
+    _browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--no-zygote",
+      ],
+    });
+  }
+  return _browser;
+}
+
+async function fetchHtml(url) {
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+  try {
+    await page.setExtraHTTPHeaders({ "Accept-Language": "en-GB,en;q=0.9" });
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
+    return await page.content();
+  } finally {
+    await page.close();
+  }
+}
 
 async function searchPlayer(name) {
-  const url = `${BASE}/en/fc26/players?search=${encodeURIComponent(name)}`;
-  const { data } = await axios.get(url, { headers: HEADERS, timeout: 8000 });
-  const $ = cheerio.load(data);
+  const html = await fetchHtml(`${BASE}/en/fc26/players?search=${encodeURIComponent(name)}`);
+  const $ = cheerio.load(html);
 
   const firstLink = $("a[href*='/en/fc26/player/']").first().attr("href");
   if (!firstLink) return null;
@@ -24,11 +46,10 @@ async function searchPlayer(name) {
 }
 
 async function getPlayerByUrl(url) {
-  const { data } = await axios.get(url, { headers: HEADERS, timeout: 8000 });
-  const $ = cheerio.load(data);
+  const html = await fetchHtml(url);
+  const $ = cheerio.load(html);
 
-  const name     = $("h1").first().text().trim() ||
-                   $(".player-name").first().text().trim();
+  const name     = $("h1").first().text().trim() || $(".player-name").first().text().trim();
   const rating   = $(".rating, .card-rating").first().text().trim();
   const position = $(".position, .card-position").first().text().trim();
   const club     = $(".club-name, .player-club").first().text().trim();
