@@ -2,14 +2,15 @@ const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const cheerio = require("cheerio");
 const { execSync } = require("child_process");
+const fs = require("fs");
 
 puppeteer.use(StealthPlugin());
 
+const BASE = "https://www.futwiz.com";
+let _browser = null;
+
 function getChromiumPath() {
-  const fs = require("fs");
-  const candidates = [
-    process.env.CHROMIUM_PATH,
-  ];
+  const candidates = [process.env.CHROMIUM_PATH];
 
   for (const name of ["chromium", "chromium-browser", "google-chrome", "google-chrome-stable"]) {
     try {
@@ -22,74 +23,68 @@ function getChromiumPath() {
     "/usr/bin/chromium",
     "/usr/bin/chromium-browser",
     "/usr/bin/google-chrome",
-    "/run/current-system/sw/bin/chromium",
-    "/nix/var/nix/profiles/default/bin/chromium",
   );
 
   for (const p of candidates) {
     if (p && fs.existsSync(p)) {
-      console.log(`[FUTWIZ] Chromium found at: ${p}`);
+      console.log(`[FUTWIZ] Chromium at: ${p}`);
       return p;
     }
   }
-
-  console.log("[FUTWIZ] PATH:", process.env.PATH);
-  console.log("[FUTWIZ] Chromium not found in any known path");
   return "chromium";
 }
-
-const BASE = "https://www.futwiz.com";
-let _browser = null;
 
 async function getBrowser() {
   if (!_browser || !_browser.isConnected()) {
     _browser = await puppeteer.launch({
       headless: true,
       executablePath: getChromiumPath(),
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--no-zygote",
-      ],
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--no-zygote"],
     });
   }
   return _browser;
 }
 
-async function fetchHtml(url) {
+async function searchPlayer(name) {
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
     await page.setExtraHTTPHeaders({ "Accept-Language": "en-GB,en;q=0.9" });
-    await page.goto(url, { waitUntil: "networkidle2", timeout: 30000 });
-    await new Promise(r => setTimeout(r, 3000));
-    const links = await page.evaluate(() =>
-      Array.from(document.querySelectorAll("a[href]"))
-        .map(a => a.getAttribute("href"))
-        .filter(h => h)
-        .slice(0, 20)
-    );
-    console.log("[FUTWIZ] All links on page:", JSON.stringify(links));
-    return await page.content();
+    await page.goto(`${BASE}/en/fc26/players`, { waitUntil: "networkidle2", timeout: 30000 });
+
+    // Find search input
+    const searchInput = await page.$('input[type="search"], input[type="text"][placeholder], input[name="search"], input[name="q"], input[name="s"]');
+    if (!searchInput) {
+      const inputs = await page.evaluate(() =>
+        Array.from(document.querySelectorAll("input")).map(i => ({ type: i.type, name: i.name, placeholder: i.placeholder, id: i.id, class: i.className }))
+      );
+      console.log("[FUTWIZ] Inputs found:", JSON.stringify(inputs));
+      return null;
+    }
+
+    await searchInput.click({ clickCount: 3 });
+    await searchInput.type(name, { delay: 80 });
+    await new Promise(r => setTimeout(r, 4000));
+
+    const firstLink = await page.evaluate(() => {
+      const a = document.querySelector('a[href*="/fc26/player/"], a[href*="/player/"]');
+      return a ? a.getAttribute("href") : null;
+    });
+
+    console.log("[FUTWIZ] First player link:", firstLink);
+    if (!firstLink) return null;
+
+    const fullUrl = firstLink.startsWith("http") ? firstLink : `${BASE}${firstLink}`;
+    await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
+    await new Promise(r => setTimeout(r, 2000));
+    const html = await page.content();
+    return parsePlayer(html, fullUrl);
   } finally {
     await page.close();
   }
 }
 
-async function searchPlayer(name) {
-  const html = await fetchHtml(`${BASE}/en/fc26/players?search=${encodeURIComponent(name)}`);
-  const $ = cheerio.load(html);
-
-  const firstLink = $("a[href*='/en/fc26/player/']").first().attr("href");
-  if (!firstLink) return null;
-
-  return getPlayerByUrl(`${BASE}${firstLink}`);
-}
-
-async function getPlayerByUrl(url) {
-  const html = await fetchHtml(url);
+function parsePlayer(html, url) {
   const $ = cheerio.load(html);
 
   const name     = $("h1").first().text().trim() || $(".player-name").first().text().trim();
