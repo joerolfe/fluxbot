@@ -6,11 +6,36 @@ const { execSync } = require("child_process");
 puppeteer.use(StealthPlugin());
 
 function getChromiumPath() {
-  try {
-    return execSync("which chromium").toString().trim();
-  } catch {
-    return "/usr/bin/chromium";
+  const fs = require("fs");
+  const candidates = [
+    process.env.CHROMIUM_PATH,
+  ];
+
+  for (const name of ["chromium", "chromium-browser", "google-chrome", "google-chrome-stable"]) {
+    try {
+      const p = execSync(`which ${name}`, { stdio: ["pipe", "pipe", "pipe"] }).toString().trim();
+      if (p) candidates.push(p);
+    } catch {}
   }
+
+  candidates.push(
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/google-chrome",
+    "/run/current-system/sw/bin/chromium",
+    "/nix/var/nix/profiles/default/bin/chromium",
+  );
+
+  for (const p of candidates) {
+    if (p && fs.existsSync(p)) {
+      console.log(`[FUTWIZ] Chromium found at: ${p}`);
+      return p;
+    }
+  }
+
+  console.log("[FUTWIZ] PATH:", process.env.PATH);
+  console.log("[FUTWIZ] Chromium not found in any known path");
+  return "chromium";
 }
 
 const BASE = "https://www.futwiz.com";
