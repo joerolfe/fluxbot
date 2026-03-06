@@ -74,7 +74,11 @@ async function searchPlayer(name) {
     });
     console.log("[FUTWIZ] After typing:", JSON.stringify(afterType));
 
-    const firstLink = afterType.links[0]?.href;
+    // Match by name in href slug (e.g. "mbappe" in "/fc26/player/kylian-mbappe/22083")
+    const normalized = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+    const match = afterType.links.find(l => l.href.toLowerCase().includes(normalized)) || afterType.links[0];
+    const firstLink = match?.href;
+    console.log("[FUTWIZ] Matched link:", firstLink);
     if (!firstLink) return null;
 
     const fullUrl = firstLink.startsWith("http") ? firstLink : `${BASE}${firstLink}`;
@@ -98,6 +102,14 @@ function parsePlayer(html, url) {
   const club     = $(".club-name, .player-club").first().text().trim();
   const nation   = $(".nation-name, .player-nation").first().text().trim();
   const cardType = $(".card-type, .version").first().text().trim();
+
+  // Debug: log all text nodes that look like stat numbers
+  const allNums = [];
+  $("span, div, p").each((_, el) => {
+    const t = $(el).text().trim();
+    if (/^\d{2}$/.test(t)) allNums.push({ tag: el.tagName, class: $(el).attr("class") || "", val: t });
+  });
+  console.log("[FUTWIZ] Num elements (first 20):", JSON.stringify(allNums.slice(0, 20)));
 
   const stats = {};
   const statLabels = ["PAC", "SHO", "PAS", "DRI", "DEF", "PHY"];
