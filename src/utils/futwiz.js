@@ -72,22 +72,17 @@ async function searchPlayer(name) {
       const buttons = Array.from(document.querySelectorAll("button, [role='option'], [class*='suggest'], [class*='autocomplete'], [class*='result'], [class*='dropdown'] a")).map(el => ({ tag: el.tagName, text: el.innerText.trim().slice(0, 50), class: el.className.slice(0, 60) })).slice(0, 10);
       return { links, buttons };
     });
-    console.log("[FUTWIZ] After typing:", JSON.stringify(afterType));
-
     // Match by name in href slug (e.g. "mbappe" in "/fc26/player/kylian-mbappe/22083")
     const normalized = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
     const match = afterType.links.find(l => l.href.toLowerCase().includes(normalized)) || afterType.links[0];
     const firstLink = match?.href;
-    console.log("[FUTWIZ] Matched link:", firstLink);
     if (!firstLink) return null;
 
     const fullUrl = firstLink.startsWith("http") ? firstLink : `${BASE}${firstLink}`;
     await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
     await new Promise(r => setTimeout(r, 2000));
     const html = await page.content();
-    const result = parsePlayer(html, fullUrl);
-    console.log("[FUTWIZ] Parsed:", JSON.stringify({ name: result.name, rating: result.rating, stats: result.stats, prices: result.prices }));
-    return result;
+    return parsePlayer(html, fullUrl);
   } finally {
     await page.close();
   }
