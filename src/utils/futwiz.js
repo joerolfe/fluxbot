@@ -64,9 +64,13 @@ async function fetchHtml(url) {
   try {
     await page.setExtraHTTPHeaders({ "Accept-Language": "en-GB,en;q=0.9" });
     await page.goto(url, { waitUntil: "networkidle2", timeout: 30000 });
-    await page.waitForSelector('a[href*="/en/fc26/player/"]', { timeout: 15000 }).catch(() => {
-      console.log("[FUTWIZ] Timed out waiting for player links");
-    });
+    const links = await page.evaluate(() =>
+      Array.from(document.querySelectorAll("a[href]"))
+        .map(a => a.getAttribute("href"))
+        .filter(h => h && h.includes("player"))
+        .slice(0, 10)
+    );
+    console.log("[FUTWIZ] Player-related links:", JSON.stringify(links));
     return await page.content();
   } finally {
     await page.close();
