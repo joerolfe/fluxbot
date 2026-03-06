@@ -24,7 +24,11 @@ module.exports = {
   async execute(interaction) {
     const p1Name = interaction.options.getString("player1");
     const p2Name = interaction.options.getString("player2");
-    await interaction.deferReply();
+    try {
+      await interaction.deferReply();
+    } catch {
+      return;
+    }
 
     try {
       const [p1, p2] = await Promise.all([searchPlayer(p1Name), searchPlayer(p2Name)]);

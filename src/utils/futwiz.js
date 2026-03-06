@@ -64,13 +64,14 @@ async function fetchHtml(url) {
   try {
     await page.setExtraHTTPHeaders({ "Accept-Language": "en-GB,en;q=0.9" });
     await page.goto(url, { waitUntil: "networkidle2", timeout: 30000 });
+    await new Promise(r => setTimeout(r, 3000));
     const links = await page.evaluate(() =>
       Array.from(document.querySelectorAll("a[href]"))
         .map(a => a.getAttribute("href"))
-        .filter(h => h && h.includes("player"))
-        .slice(0, 10)
+        .filter(h => h)
+        .slice(0, 20)
     );
-    console.log("[FUTWIZ] Player-related links:", JSON.stringify(links));
+    console.log("[FUTWIZ] All links on page:", JSON.stringify(links));
     return await page.content();
   } finally {
     await page.close();

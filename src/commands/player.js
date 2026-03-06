@@ -12,7 +12,11 @@ module.exports = {
 
   async execute(interaction) {
     const name = interaction.options.getString("name");
-    await interaction.deferReply();
+    try {
+      await interaction.deferReply();
+    } catch {
+      return;
+    }
 
     try {
       const p = await searchPlayer(name);
