@@ -68,23 +68,30 @@ async function searchPlayer(name, version = null) {
     console.log("[FUTWIZ] Cards sample:", JSON.stringify(cards.filter(c => c.href.toLowerCase().includes(normalized)).slice(0, 3)));
 
     const nameMatches = cards.filter(c => c.href.toLowerCase().includes(normalized));
-    let match;
-    if (version) {
-      const v = version.toLowerCase();
-      const allText = c => [c.text, c.title, c.ariaLabel, c.parentText, c.imgAlt].join(" ").toLowerCase();
-      match = nameMatches.find(c => allText(c).includes(v)) || nameMatches[0];
-    } else {
-      match = nameMatches[0];
+    const candidates = nameMatches.length > 0 ? nameMatches : cards;
+
+    if (!candidates.length) return null;
+
+    if (!version) {
+      const link = candidates[0].href;
+      const fullUrl = link.startsWith("http") ? link : `${BASE}${link}`;
+      await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
+      await new Promise(r => setTimeout(r, 2000));
+      return parsePlayer(await page.content(), fullUrl);
     }
 
-    const firstLink = match?.href || cards[0]?.href;
-    if (!firstLink) return null;
-
-    const fullUrl = firstLink.startsWith("http") ? firstLink : `${BASE}${firstLink}`;
-    await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
-    await new Promise(r => setTimeout(r, 2000));
-    const html = await page.content();
-    return parsePlayer(html, fullUrl);
+    // Version filter: visit each candidate page until card type matches
+    const v = version.toLowerCase();
+    let firstResult = null;
+    for (const card of candidates.slice(0, 4)) {
+      const fullUrl = card.href.startsWith("http") ? card.href : `${BASE}${card.href}`;
+      await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
+      await new Promise(r => setTimeout(r, 2000));
+      const result = parsePlayer(await page.content(), fullUrl);
+      if (!firstResult) firstResult = result;
+      if (result.cardType && result.cardType.toLowerCase().includes(v)) return result;
+    }
+    return firstResult;
   } finally {
     await page.close();
   }
