@@ -10,24 +10,40 @@ module.exports = {
     try {
       const p = await searchPlayer(query);
 
-      const stat = (v) => v != null ? `**${v}**` : "N/A";
-      const price = (v) => v != null ? `${Number(v).toLocaleString()} coins` : "N/A";
+      // FUTBIN uses different field names - handle both possibilities
+      const name     = p.Player     || p.name     || query;
+      const rating   = p.Rating     || p.rating   || "?";
+      const position = p.Position   || p.position || "?";
+      const pac      = p.PAC        || p.pace;
+      const sho      = p.SHO        || p.shooting;
+      const pas      = p.PAS        || p.passing;
+      const dri      = p.DRI        || p.dribbling;
+      const def      = p.DEF        || p.defending;
+      const phy      = p.PHY        || p.physicality;
+      const psPrice  = p.ps_price   || p.pricePs4  || p.price?.ps4;
+      const xbPrice  = p.xbox_price || p.priceXbox || p.price?.xbox;
+      const pcPrice  = p.pc_price   || p.pricePc   || p.price?.pc;
+
+      const stat  = (v) => v != null ? `**${v}**` : "—";
+      const price = (v) => v != null && v !== "0" ? `${Number(v).toLocaleString()} coins` : "N/A";
+
+      const fields = [
+        { name: "⚡ PAC", value: stat(pac), inline: true },
+        { name: "🎯 SHO", value: stat(sho), inline: true },
+        { name: "🎁 PAS", value: stat(pas), inline: true },
+        { name: "🕹️ DRI", value: stat(dri), inline: true },
+        { name: "🛡️ DEF", value: stat(def), inline: true },
+        { name: "💪 PHY", value: stat(phy), inline: true },
+        { name: "🎮 PS",   value: price(psPrice), inline: true },
+        { name: "🎮 Xbox", value: price(xbPrice), inline: true },
+        { name: "💻 PC",   value: price(pcPrice), inline: true },
+      ];
 
       const embed = new EmbedBuilder()
         .setColor(0x3B82F6)
-        .setTitle(`${p.rating ?? "?"} ${p.name ?? query} — ${p.position ?? "?"}`)
-        .addFields(
-          { name: "⚡ PAC", value: stat(p.pace), inline: true },
-          { name: "🎯 SHO", value: stat(p.shooting), inline: true },
-          { name: "🎁 PAS", value: stat(p.passing), inline: true },
-          { name: "🕹️ DRI", value: stat(p.dribbling), inline: true },
-          { name: "🛡️ DEF", value: stat(p.defending), inline: true },
-          { name: "💪 PHY", value: stat(p.physicality), inline: true },
-          { name: "💰 PS Price", value: price(p.pricePs4 ?? p.ps4Price ?? p.price?.ps4), inline: true },
-          { name: "💰 Xbox Price", value: price(p.priceXbox ?? p.xboxPrice ?? p.price?.xbox), inline: true },
-          { name: "💰 PC Price", value: price(p.pricePc ?? p.pcPrice ?? p.price?.pc), inline: true },
-        )
-        .setFooter({ text: "Data from FUTDB • FluxFUT" })
+        .setTitle(`${rating} ${name} — ${position}`)
+        .addFields(fields)
+        .setFooter({ text: "Data from FUTBIN • FluxFUT" })
         .setTimestamp();
 
       await message.reply({ embeds: [embed] });

@@ -1,18 +1,23 @@
-const BASE = "https://futdb.app/api";
-
 async function searchPlayer(name) {
-  const res = await fetch(`${BASE}/players/search`, {
-    method: "POST",
+  const res = await fetch(`https://www.futbin.com/search?year=26&term=${encodeURIComponent(name)}`, {
     headers: {
-      "X-AUTH-TOKEN": process.env.FUTDB_API_KEY,
-      "Content-Type": "application/json",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+      "Referer": "https://www.futbin.com/",
+      "Accept": "application/json, text/javascript, */*",
     },
-    body: JSON.stringify({ name }),
   });
-  if (!res.ok) throw new Error(`FUTDB API error: ${res.status}`);
-  const json = await res.json();
-  const items = json.data || json.items || json;
-  if (!Array.isArray(items) || !items.length) throw new Error(`No results for "${name}"`);
+  if (!res.ok) throw new Error(`FUTBIN returned ${res.status}`);
+
+  const text = await res.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error("FUTBIN didn't return valid data");
+  }
+
+  const items = Array.isArray(data) ? data : data.data || data.items || data.players;
+  if (!items || !items.length) throw new Error(`No results found for "${name}"`);
   return items[0];
 }
 
