@@ -96,26 +96,19 @@ function parsePlayer(html, url) {
   let priceXB  = "N/A";
   let pricePCn = "N/A";
 
+  // Only check leaf nodes so we don't match parent elements containing all prices
   $("*").each((_, el) => {
-    const text = $(el).text();
-    if (/\b(ps[45]?|playstation)\b/i.test(text)) {
-      const match = text.match(/([\d,]+)\s*coins?/i);
-      if (match) pricePS = match[1] + " coins";
-    }
-    if (/\bxbox\b/i.test(text)) {
-      const match = text.match(/([\d,]+)\s*coins?/i);
-      if (match) priceXB = match[1] + " coins";
-    }
-    if (/\bpc\b/i.test(text)) {
-      const match = text.match(/([\d,]+)\s*coins?/i);
-      if (match) pricePCn = match[1] + " coins";
-    }
+    if ($(el).children().length > 0) return;
+    const text = $(el).text().trim();
+    if (!text) return;
+    const num = text.match(/([\d,]+)\s*coins?/i);
+    if (!num) return;
+    const price = num[1] + " coins";
+    const label = $(el).closest("*").parent().text().toLowerCase();
+    if (/ps[45]?|playstation/i.test(label) && pricePS === "N/A") pricePS = price;
+    if (/xbox/i.test(label) && priceXB === "N/A") priceXB = price;
+    if (/\bpc\b/i.test(label) && pricePCn === "N/A") pricePCn = price;
   });
-
-  const priceEls = $(".price, .player-price, [class*='price']");
-  if (pricePS === "N/A" && priceEls.length) {
-    pricePS = priceEls.first().text().replace(/\s+/g, " ").trim() || "N/A";
-  }
 
   return {
     name, rating, position, club, nation, cardType,
