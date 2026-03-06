@@ -68,6 +68,10 @@ async function searchPlayer(name) {
     const fullUrl = firstLink.startsWith("http") ? firstLink : `${BASE}${firstLink}`;
     await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
     await new Promise(r => setTimeout(r, 2000));
+    const priceLines = await page.evaluate(() =>
+      document.body.innerText.split("\n").map(l => l.trim()).filter(l => l && /ps|xbox|pc|coin/i.test(l)).slice(0, 20)
+    );
+    console.log("[FUTWIZ] Price lines:", JSON.stringify(priceLines));
     const html = await page.content();
     return parsePlayer(html, fullUrl);
   } finally {
