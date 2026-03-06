@@ -38,31 +38,40 @@ async function getBrowser() {
   return _browser;
 }
 
-async function searchPlayer(name) {
+async function searchPlayer(name, version = null) {
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
     await page.setExtraHTTPHeaders({ "Accept-Language": "en-GB,en;q=0.9" });
 
-    // Navigate to search URL first so the SPA sets the search context
     await page.goto(`${BASE}/en/fc26/players?search=${encodeURIComponent(name)}`, { waitUntil: "networkidle2", timeout: 30000 });
 
-    // Then find the search input and type to trigger the SPA filter
     const searchInput = await page.$('input[type="search"], input[type="text"][placeholder], input[name="search"], input[name="q"], input[name="s"]');
     if (searchInput) {
       await searchInput.click({ clickCount: 3 });
       await searchInput.type(name, { delay: 80 });
     }
 
-    // Wait for filtered results to appear
     await new Promise(r => setTimeout(r, 5000));
 
     const normalized = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    const links = await page.evaluate(() =>
-      Array.from(document.querySelectorAll("a[href*='/player/']")).map(a => a.getAttribute("href"))
+    const cards = await page.evaluate(() =>
+      Array.from(document.querySelectorAll("a[href*='/player/']")).map(a => ({
+        href: a.getAttribute("href"),
+        text: a.innerText.trim(),
+      }))
     );
 
-    const firstLink = links.find(h => h.toLowerCase().includes(normalized)) || links[0];
+    const nameMatches = cards.filter(c => c.href.toLowerCase().includes(normalized));
+    let match;
+    if (version) {
+      const v = version.toLowerCase();
+      match = nameMatches.find(c => c.text.toLowerCase().includes(v)) || nameMatches[0];
+    } else {
+      match = nameMatches[0];
+    }
+
+    const firstLink = match?.href || cards[0]?.href;
     if (!firstLink) return null;
 
     const fullUrl = firstLink.startsWith("http") ? firstLink : `${BASE}${firstLink}`;

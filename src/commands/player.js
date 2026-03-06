@@ -8,10 +8,14 @@ module.exports = {
     .addStringOption(opt =>
       opt.setName("name")
         .setDescription("Player name — e.g. Mbappe")
-        .setRequired(true)),
+        .setRequired(true))
+    .addStringOption(opt =>
+      opt.setName("version")
+        .setDescription("Card version — e.g. TOTY, IF, RTTK, Gold")),
 
   async execute(interaction) {
-    const name = interaction.options.getString("name");
+    const name    = interaction.options.getString("name");
+    const version = interaction.options.getString("version");
     try {
       await interaction.deferReply();
     } catch {
@@ -19,7 +23,7 @@ module.exports = {
     }
 
     try {
-      const p = await searchPlayer(name);
+      const p = await searchPlayer(name, version);
 
       if (!p || !p.name) {
         return interaction.editReply(`❌ Couldn't find **${name}** on FUTWIZ. Try a more specific name.`);
