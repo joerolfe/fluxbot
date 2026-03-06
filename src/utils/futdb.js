@@ -1,5 +1,5 @@
 async function searchPlayer(name) {
-  const res = await fetch(`https://api.futdatabase.com/api/players/search?name=${encodeURIComponent(name)}`, {
+  const res = await fetch(`https://api.futdatabase.com/api/players?name=${encodeURIComponent(name)}`, {
     headers: { "accept": "application/json" },
   });
   if (!res.ok) throw new Error(`API returned ${res.status}`);
