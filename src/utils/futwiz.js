@@ -59,14 +59,20 @@ async function searchPlayer(name, version = null) {
       Array.from(document.querySelectorAll("a[href*='/player/']")).map(a => ({
         href: a.getAttribute("href"),
         text: a.innerText.trim(),
+        title: a.getAttribute("title") || "",
+        ariaLabel: a.getAttribute("aria-label") || "",
+        parentText: a.parentElement?.innerText?.trim() || "",
+        imgAlt: a.querySelector("img")?.getAttribute("alt") || "",
       }))
     );
+    console.log("[FUTWIZ] Cards sample:", JSON.stringify(cards.filter(c => c.href.toLowerCase().includes(normalized)).slice(0, 3)));
 
     const nameMatches = cards.filter(c => c.href.toLowerCase().includes(normalized));
     let match;
     if (version) {
       const v = version.toLowerCase();
-      match = nameMatches.find(c => c.text.toLowerCase().includes(v)) || nameMatches[0];
+      const allText = c => [c.text, c.title, c.ariaLabel, c.parentText, c.imgAlt].join(" ").toLowerCase();
+      match = nameMatches.find(c => allText(c).includes(v)) || nameMatches[0];
     } else {
       match = nameMatches[0];
     }
