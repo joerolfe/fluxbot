@@ -64,16 +64,17 @@ async function searchPlayer(name) {
 
     await searchInput.click({ clickCount: 3 });
     await searchInput.type(name, { delay: 80 });
-    await page.keyboard.press("Enter");
-    await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 }).catch(() => {});
     await new Promise(r => setTimeout(r, 3000));
 
-    const firstLink = await page.evaluate(() => {
-      const a = document.querySelector('a[href*="/fc26/player/"], a[href*="/player/"]');
-      return a ? a.getAttribute("href") : null;
+    // Log everything visible after typing to find autocomplete structure
+    const afterType = await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll("a[href*='/player/']")).map(a => ({ href: a.getAttribute("href"), text: a.innerText.trim().slice(0, 50) })).slice(0, 10);
+      const buttons = Array.from(document.querySelectorAll("button, [role='option'], [class*='suggest'], [class*='autocomplete'], [class*='result'], [class*='dropdown'] a")).map(el => ({ tag: el.tagName, text: el.innerText.trim().slice(0, 50), class: el.className.slice(0, 60) })).slice(0, 10);
+      return { links, buttons };
     });
+    console.log("[FUTWIZ] After typing:", JSON.stringify(afterType));
 
-    console.log("[FUTWIZ] First player link:", firstLink);
+    const firstLink = afterType.links[0]?.href;
     if (!firstLink) return null;
 
     const fullUrl = firstLink.startsWith("http") ? firstLink : `${BASE}${firstLink}`;
