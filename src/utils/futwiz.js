@@ -1,8 +1,17 @@
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const cheerio = require("cheerio");
+const { execSync } = require("child_process");
 
 puppeteer.use(StealthPlugin());
+
+function getChromiumPath() {
+  try {
+    return execSync("which chromium").toString().trim();
+  } catch {
+    return "/usr/bin/chromium";
+  }
+}
 
 const BASE = "https://www.futwiz.com";
 let _browser = null;
@@ -11,6 +20,7 @@ async function getBrowser() {
   if (!_browser || !_browser.isConnected()) {
     _browser = await puppeteer.launch({
       headless: true,
+      executablePath: getChromiumPath(),
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
