@@ -68,10 +68,6 @@ async function searchPlayer(name) {
     const fullUrl = firstLink.startsWith("http") ? firstLink : `${BASE}${firstLink}`;
     await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
     await new Promise(r => setTimeout(r, 2000));
-    const priceLines = await page.evaluate(() =>
-      document.body.innerText.split("\n").map(l => l.trim()).filter(l => l && /ps|xbox|pc|coin/i.test(l)).slice(0, 20)
-    );
-    console.log("[FUTWIZ] Price lines:", JSON.stringify(priceLines));
     const html = await page.content();
     return parsePlayer(html, fullUrl);
   } finally {
@@ -96,23 +92,15 @@ function parsePlayer(html, url) {
     if (i < 6) stats[statLabels[i]] = $(el).text().trim();
   });
 
-  let pricePS  = "N/A";
-  let priceXB  = "N/A";
-  let pricePCn = "N/A";
+  // Prices are in a sentence like:
+  // "...xbox and playstation console market is 1,860,000 coins... and pc is 1,860,000 coins..."
+  const bodyText = $("body").text();
+  const consoleMatch = bodyText.match(/console market is ([\d,]+)\s*coins?/i);
+  const pcMatch      = bodyText.match(/\bpc is ([\d,]+)\s*coins?/i);
 
-  // Only check leaf nodes so we don't match parent elements containing all prices
-  $("*").each((_, el) => {
-    if ($(el).children().length > 0) return;
-    const text = $(el).text().trim();
-    if (!text) return;
-    const num = text.match(/([\d,]+)\s*coins?/i);
-    if (!num) return;
-    const price = num[1] + " coins";
-    const label = $(el).closest("*").parent().text().toLowerCase();
-    if (/ps[45]?|playstation/i.test(label) && pricePS === "N/A") pricePS = price;
-    if (/xbox/i.test(label) && priceXB === "N/A") priceXB = price;
-    if (/\bpc\b/i.test(label) && pricePCn === "N/A") pricePCn = price;
-  });
+  const pricePS  = consoleMatch ? consoleMatch[1] + " coins" : "N/A";
+  const priceXB  = consoleMatch ? consoleMatch[1] + " coins" : "N/A";
+  const pricePCn = pcMatch      ? pcMatch[1] + " coins"      : "N/A";
 
   return {
     name, rating, position, club, nation, cardType,
