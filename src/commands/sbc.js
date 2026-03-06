@@ -4,22 +4,16 @@ module.exports = {
   name: "sbc",
   async execute(message, args) {
     const query = args.join(" ");
-    const futbinUrl = query
-      ? `https://www.futbin.com/sbc/challenges?search=${encodeURIComponent(query)}`
-      : "https://www.futbin.com/sbc";
-    const futwizUrl = query
-      ? `https://www.futwiz.com/en/fc26/sbcs?search=${encodeURIComponent(query)}`
-      : "https://www.futwiz.com/en/fc26/sbcs";
 
     const embed = new EmbedBuilder()
       .setColor(0x3B82F6)
       .setTitle(query ? `🧩 SBC: ${query}` : "🧩 SBC Solutions")
-      .setDescription(`Find the cheapest solution for ${query ? `**${query}**` : "any SBC"}:`)
+      .setDescription(query ? `Find the cheapest solution for **${query}**:` : "Browse all active SBCs:")
       .addFields(
-        { name: "FUTBIN", value: `[View solutions](${futbinUrl})`, inline: true },
-        { name: "FUTWIZ", value: `[View solutions](${futwizUrl})`, inline: true },
+        { name: "FUTBIN", value: `[View SBCs](https://www.futbin.com/sbc)`, inline: true },
+        { name: "FUTWIZ", value: `[View SBCs](https://www.futwiz.com/en/fc26/sbcs)`, inline: true },
       )
-      .setFooter({ text: "FluxFUT • Use !sbc [name] to search a specific SBC" });
+      .setFooter({ text: "FluxFUT • Search by name on either site" });
 
     await message.reply({ embeds: [embed] });
   },
