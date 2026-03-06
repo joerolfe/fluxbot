@@ -10,11 +10,11 @@ module.exports = {
       .setColor(0x3B82F6)
       .setTitle("🔵 FluxFUT Bot — Commands")
       .addFields(
-        { name: "📊 Info & Meta", value: "`/meta` `/tactics` `/squad` `/discord`", inline: false },
-        { name: "💰 Players & SBCs", value: "`/price` — FUTBIN player search\n`/compare` — compare two players on FUTBIN\n`/sbc` — find SBC solutions", inline: false },
+        { name: "📊 Info & Meta", value: "`/meta` `/tactics` `/squad`", inline: false },
+        { name: "💰 Players & SBCs", value: "`/player` — full card stats & prices from FUTWIZ\n`/price` — live player price from FUTWIZ\n`/compare` — compare two players side by side\n`/sbc` — find SBC solutions on FUTBIN", inline: false },
+        { name: "⭐ Premium", value: "`/premium` — view FluxFUT Premium perks & pricing\n`/verify` — link your Whop purchase to Discord", inline: false },
         { name: "⚙️ Mod Only", value: "`/warn` `/kick` `/ban` `/clear` `/announce` `/alert` `/tip`", inline: false },
-        { name: "🔒 Premium", value: "`/verify` — link your Whop purchase to Discord", inline: false },
-        { name: "💡 Tips", value: "`/tactics formation:433` or `/tactics formation:523` for other formations", inline: false },
+        { name: "💡 Tips", value: "`/tactics` has a formation dropdown — choose 4-2-3-1, 4-3-3 or 5-2-3", inline: false },
       )
       .setFooter({ text: "FluxFUT — Control the Meta" });
 
