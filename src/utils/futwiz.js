@@ -64,7 +64,9 @@ async function searchPlayer(name) {
 
     await searchInput.click({ clickCount: 3 });
     await searchInput.type(name, { delay: 80 });
-    await new Promise(r => setTimeout(r, 4000));
+    await page.keyboard.press("Enter");
+    await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 }).catch(() => {});
+    await new Promise(r => setTimeout(r, 3000));
 
     const firstLink = await page.evaluate(() => {
       const a = document.querySelector('a[href*="/fc26/player/"], a[href*="/player/"]');
@@ -78,7 +80,9 @@ async function searchPlayer(name) {
     await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
     await new Promise(r => setTimeout(r, 2000));
     const html = await page.content();
-    return parsePlayer(html, fullUrl);
+    const result = parsePlayer(html, fullUrl);
+    console.log("[FUTWIZ] Parsed:", JSON.stringify({ name: result.name, rating: result.rating, stats: result.stats, prices: result.prices }));
+    return result;
   } finally {
     await page.close();
   }
