@@ -96,15 +96,13 @@ async function searchPlayer(name) {
 function parsePlayer(html, url) {
   const $ = cheerio.load(html);
 
-  const name     = $("h1").first().text().trim() || $(".player-name, .fc25-card__name").first().text().trim();
+  const rawName  = $("h1").first().text().trim() || $(".player-name, .fc25-card__name").first().text().trim();
+  const name     = rawName.replace(/fc2\d.*$/i, "").trim() || rawName;
+  const cardType = (rawName.match(/fc2\d\s+(.+)$/i) || [])[1]?.trim() || $(".fc25-card__type, .card-type, .version").first().text().trim();
   const rating   = $(".fc25-card__rating").first().text().trim();
   const position = $(".fc25-card__position, .card-position, .position").first().text().trim();
   const club     = $(".club-name, .player-club, .fc25-card__club").first().text().trim();
   const nation   = $(".nation-name, .player-nation, .fc25-card__nation").first().text().trim();
-  const cardType = $(".fc25-card__type, .card-type, .version").first().text().trim();
-
-  // Debug name/position/price to fine-tune selectors
-  console.log("[FUTWIZ] Name:", name, "| Rating:", rating, "| Position:", position);
 
   const stats = {};
   const statLabels = ["PAC", "SHO", "PAS", "DRI", "DEF", "PHY"];
@@ -118,15 +116,15 @@ function parsePlayer(html, url) {
 
   $("*").each((_, el) => {
     const text = $(el).text();
-    if (/ps(5|4)?\s*price/i.test(text)) {
+    if (/\b(ps[45]?|playstation)\b/i.test(text)) {
       const match = text.match(/([\d,]+)\s*coins?/i);
       if (match) pricePS = match[1] + " coins";
     }
-    if (/xbox/i.test(text)) {
+    if (/\bxbox\b/i.test(text)) {
       const match = text.match(/([\d,]+)\s*coins?/i);
       if (match) priceXB = match[1] + " coins";
     }
-    if (/pc\s*price/i.test(text)) {
+    if (/\bpc\b/i.test(text)) {
       const match = text.match(/([\d,]+)\s*coins?/i);
       if (match) pricePCn = match[1] + " coins";
     }
