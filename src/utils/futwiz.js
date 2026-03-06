@@ -96,24 +96,19 @@ async function searchPlayer(name) {
 function parsePlayer(html, url) {
   const $ = cheerio.load(html);
 
-  const name     = $("h1").first().text().trim() || $(".player-name").first().text().trim();
-  const rating   = $(".rating, .card-rating").first().text().trim();
-  const position = $(".position, .card-position").first().text().trim();
-  const club     = $(".club-name, .player-club").first().text().trim();
-  const nation   = $(".nation-name, .player-nation").first().text().trim();
-  const cardType = $(".card-type, .version").first().text().trim();
+  const name     = $("h1").first().text().trim() || $(".player-name, .fc25-card__name").first().text().trim();
+  const rating   = $(".fc25-card__rating").first().text().trim();
+  const position = $(".fc25-card__position, .card-position, .position").first().text().trim();
+  const club     = $(".club-name, .player-club, .fc25-card__club").first().text().trim();
+  const nation   = $(".nation-name, .player-nation, .fc25-card__nation").first().text().trim();
+  const cardType = $(".fc25-card__type, .card-type, .version").first().text().trim();
 
-  // Debug: log all text nodes that look like stat numbers
-  const allNums = [];
-  $("span, div, p").each((_, el) => {
-    const t = $(el).text().trim();
-    if (/^\d{2}$/.test(t)) allNums.push({ tag: el.tagName, class: $(el).attr("class") || "", val: t });
-  });
-  console.log("[FUTWIZ] Num elements (first 20):", JSON.stringify(allNums.slice(0, 20)));
+  // Debug name/position/price to fine-tune selectors
+  console.log("[FUTWIZ] Name:", name, "| Rating:", rating, "| Position:", position);
 
   const stats = {};
   const statLabels = ["PAC", "SHO", "PAS", "DRI", "DEF", "PHY"];
-  $(".stat-val, .attr-val, .player-stats span").each((i, el) => {
+  $(".fc25-card__attribute-value").each((i, el) => {
     if (i < 6) stats[statLabels[i]] = $(el).text().trim();
   });
 
