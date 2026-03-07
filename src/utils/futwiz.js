@@ -145,7 +145,10 @@ function parsePlayer(html, url) {
   const consoleMatch = bodyText.match(/console market is ([\d,]+)\s*coins?/i);
   const pcMatch      = bodyText.match(/\bpc is ([\d,]+)\s*coins?/i);
 
-  console.log("[FUTWIZ] Parsed:", { name, cardType, rating, position });
+  console.log("[FUTWIZ] Parsed:", { name, cardType, rating, position, club, nation });
+  // Log all class names on the page to find club/nation selectors
+  const allClasses = [...new Set($([ '[class]' ]).map((_, el) => $(el).attr('class')).get())].filter(c => /club|nation|team|country/i.test(c));
+  console.log("[FUTWIZ] Club/nation classes on page:", allClasses.slice(0, 20));
 
   const pricePS  = consoleMatch ? consoleMatch[1] + " coins" : "N/A";
   const priceXB  = consoleMatch ? consoleMatch[1] + " coins" : "N/A";
