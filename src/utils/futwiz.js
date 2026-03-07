@@ -100,14 +100,32 @@ async function searchPlayer(name, version = null) {
 
       if (versionMatch) {
         target = versionMatch;
-        console.log("[FUTWIZ] Version matched:", target.href);
+        console.log("[FUTWIZ] Version matched from search results:", target.href);
       } else if (isGold) {
         // Base gold card = lowest numeric ID (original card, added first)
         const sorted = [...candidates].sort((a, b) => hrefId(a.href) - hrefId(b.href));
         target = sorted[0];
         console.log("[FUTWIZ] Gold: picked lowest-ID candidate:", target.href);
       } else {
-        console.log("[FUTWIZ] No version match found, using first result");
+        // Visit candidate pages and check card type from H1 (reliable for all rarities)
+        console.log("[FUTWIZ] Visiting pages to find version:", v);
+        let found = null;
+        for (const card of candidates.slice(0, 5)) {
+          const candidateUrl = card.href.startsWith("http") ? card.href : `${BASE}${card.href}`;
+          await page.goto(candidateUrl, { waitUntil: "networkidle2", timeout: 30000 });
+          await new Promise(r => setTimeout(r, 1000));
+          const h1 = await page.evaluate(() => document.querySelector("h1")?.innerText?.trim() || "");
+          const ct = (h1.match(/fc\s*2\d\s+(.+)$/i) || [])[1]?.trim().toLowerCase() || "";
+          console.log("[FUTWIZ] Candidate H1 cardType:", ct, "url:", card.href);
+          if (ct.includes(v)) { found = card; break; }
+        }
+        if (found) {
+          target = found;
+          console.log("[FUTWIZ] Version matched via page visit:", target.href);
+        } else {
+          target = candidates[0];
+          console.log("[FUTWIZ] No version match, using first result");
+        }
       }
     }
 
@@ -151,7 +169,6 @@ async function searchPlayer(name, version = null) {
       } catch(e) {}
       return null;
     }).catch(() => null);
-    console.log("[FUTWIZ] jsPrices:", jsPrices);
 
     const result = parsePlayer(await page.content(), fullUrl);
     if (!result.rating)   result.rating   = ratingFromSearch;
@@ -197,10 +214,6 @@ function parsePlayer(html, url) {
   const pcMatch      = bodyText.match(/\bpc is ([\d,]+)\s*coins?/i);
 
   console.log("[FUTWIZ] Parsed:", { name, cardType, rating, position, club, nation });
-  // Log JS price data to understand structure for gold cards
-  const scripts = $("script").map((_, el) => $(el).html() || "").get().join("\n");
-  const jsIdx = scripts.search(/console.*?price|price.*?console|'console'|"console"/i);
-  console.log("[FUTWIZ] JS price snippet:", jsIdx >= 0 ? scripts.substring(Math.max(0, jsIdx - 50), jsIdx + 300) : "NOT FOUND");
 
   const fmtPrice = (val) => (!val || val === "0") ? "N/A" : val + " coins";
   const pricePS  = fmtPrice(consoleMatch?.[1]);

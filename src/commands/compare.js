@@ -14,11 +14,11 @@ module.exports = {
     .setDescription("Compare two FC26 players side by side")
     .addStringOption(opt =>
       opt.setName("player1")
-        .setDescription("First player — e.g. Mbappe")
+        .setDescription("Full player name — e.g. Kylian Mbappe")
         .setRequired(true))
     .addStringOption(opt =>
       opt.setName("player2")
-        .setDescription("Second player — e.g. Ronaldo")
+        .setDescription("Full player name — e.g. Cristiano Ronaldo")
         .setRequired(true))
     .addStringOption(opt =>
       opt.setName("version1")

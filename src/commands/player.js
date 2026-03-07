@@ -7,7 +7,7 @@ module.exports = {
     .setDescription("Look up a live FC26 player from FUTWIZ")
     .addStringOption(opt =>
       opt.setName("name")
-        .setDescription("Player name — e.g. Mbappe")
+        .setDescription("Full player name — e.g. Kylian Mbappe")
         .setRequired(true))
     .addStringOption(opt =>
       opt.setName("version")
