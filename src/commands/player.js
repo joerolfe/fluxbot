@@ -34,10 +34,16 @@ module.exports = {
         .join("  |  ") || "Stats unavailable";
 
       const title = [p.rating, p.cardType, p.name].filter(Boolean).join(" ");
+      const details = [
+        p.position ? `**Position:** ${p.position}` : "",
+        p.club     ? `**Club:** ${p.club}`           : "",
+        p.nation   ? `**Nation:** ${p.nation}`        : "",
+      ].filter(Boolean).join("  |  ");
 
       const embed = new EmbedBuilder()
         .setColor(0x3B82F6)
         .setTitle(title)
+        .setDescription(details || null)
         .addFields(
           { name: "📊 Stats", value: statsLine, inline: false },
           {
