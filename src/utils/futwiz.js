@@ -140,8 +140,8 @@ function parsePlayer(html, url) {
   const rating   = $("[class*='card__rating'], [class*='card-rating']").first().text().trim();
   const position = $("[class*='card__position'], [class*='card-position']").first().text().trim();
   // Club/nation: text node inside the filter links e.g. /fc26/players?teams[]=243
-  const club   = $("a[href*='teams[]=']").clone().children().remove().end().text().trim();
-  const nation = $("a[href*='nations[]=']").clone().children().remove().end().text().trim();
+  const club   = $("a[href*='teams[]=']").first().clone().children().remove().end().text().trim();
+  const nation = $("a[href*='nations[]=']").first().clone().children().remove().end().text().trim();
 
   const stats = {};
   const statLabels = ["PAC", "SHO", "PAS", "DRI", "DEF", "PHY"];
