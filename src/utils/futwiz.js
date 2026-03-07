@@ -65,33 +65,44 @@ async function searchPlayer(name, version = null) {
         imgAlt: a.querySelector("img")?.getAttribute("alt") || "",
       }))
     );
-    console.log("[FUTWIZ] Cards sample:", JSON.stringify(cards.filter(c => c.href.toLowerCase().includes(normalized)).slice(0, 3)));
 
     const nameMatches = cards.filter(c => c.href.toLowerCase().includes(normalized));
     const candidates = nameMatches.length > 0 ? nameMatches : cards;
+    console.log("[FUTWIZ] Candidates:", JSON.stringify(candidates.slice(0, 5)));
 
     if (!candidates.length) return null;
 
-    if (!version) {
-      const link = candidates[0].href;
-      const fullUrl = link.startsWith("http") ? link : `${BASE}${link}`;
-      await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
-      await new Promise(r => setTimeout(r, 2000));
-      return parsePlayer(await page.content(), fullUrl);
+    // Version filter: first try to match from search result card data (no extra page loads needed)
+    let target = candidates[0];
+    if (version) {
+      const v = version.toLowerCase();
+      const versionMatch = candidates.find(c => {
+        const fields = [c.href, c.text, c.title, c.ariaLabel, c.parentText, c.imgAlt];
+        return fields.some(f => f.toLowerCase().includes(v));
+      });
+      if (versionMatch) {
+        target = versionMatch;
+        console.log("[FUTWIZ] Version matched from search results:", target.href);
+      } else {
+        // Fall back: visit each candidate page until cardType matches
+        console.log("[FUTWIZ] No version match in search results, visiting pages...");
+        let firstResult = null;
+        for (const card of candidates.slice(0, 5)) {
+          const fullUrl = card.href.startsWith("http") ? card.href : `${BASE}${card.href}`;
+          await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
+          await new Promise(r => setTimeout(r, 2000));
+          const result = parsePlayer(await page.content(), fullUrl);
+          if (!firstResult) firstResult = result;
+          if (result.cardType && result.cardType.toLowerCase().includes(v)) return result;
+        }
+        return firstResult;
+      }
     }
 
-    // Version filter: visit each candidate page until card type matches
-    const v = version.toLowerCase();
-    let firstResult = null;
-    for (const card of candidates.slice(0, 4)) {
-      const fullUrl = card.href.startsWith("http") ? card.href : `${BASE}${card.href}`;
-      await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
-      await new Promise(r => setTimeout(r, 2000));
-      const result = parsePlayer(await page.content(), fullUrl);
-      if (!firstResult) firstResult = result;
-      if (result.cardType && result.cardType.toLowerCase().includes(v)) return result;
-    }
-    return firstResult;
+    const fullUrl = target.href.startsWith("http") ? target.href : `${BASE}${target.href}`;
+    await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
+    await new Promise(r => setTimeout(r, 2000));
+    return parsePlayer(await page.content(), fullUrl);
   } finally {
     await page.close();
   }
@@ -100,17 +111,42 @@ async function searchPlayer(name, version = null) {
 function parsePlayer(html, url) {
   const $ = cheerio.load(html);
 
-  const rawName  = $("h1").first().text().trim() || $(".player-name, .fc25-card__name").first().text().trim();
-  const name     = rawName.replace(/fc2\d.*$/i, "").trim() || rawName;
-  const cardType = (rawName.match(/fc2\d\s+(.+)$/i) || [])[1]?.trim() || $(".fc25-card__type, .card-type, .version").first().text().trim();
-  const rating   = $(".fc25-card__rating").first().text().trim();
-  const position = $(".fc25-card__position, .card-position, .position").first().text().trim();
-  const club     = $(".club-name, .player-club, .fc25-card__club").first().text().trim();
-  const nation   = $(".nation-name, .player-nation, .fc25-card__nation").first().text().trim();
+  // Name: H1 or any card name element
+  const name = (
+    $("h1").first().text().trim() ||
+    $("[class*='card__name'], [class*='player-name']").first().text().trim()
+  ).replace(/\s+/g, " ").trim();
+
+  // Card type: look for version/type badge elements, then fall back to URL slug
+  let cardType = (
+    $("[class*='card__type'], [class*='card-type'], [class*='card__version'], [class*='card-version']").first().text().trim() ||
+    $("[class*='version'], [class*='card-badge'], [class*='card__badge']").first().text().trim()
+  );
+  if (!cardType) {
+    // Extract from URL slug — e.g. /en/fc26/players/12345/toty-mbappe → "TOTY"
+    const slug = url.split("/").pop() || "";
+    const versionKeywords = [
+      "toty", "tots", "totw", "fut-birthday", "winter-wildcards", "thunderstruck",
+      "rttk", "ucl", "icon", "hero", "futties", "gold", "silver", "bronze",
+    ];
+    for (const kw of versionKeywords) {
+      if (slug.toLowerCase().includes(kw)) {
+        cardType = kw.replace(/-/g, " ").toUpperCase();
+        break;
+      }
+    }
+    // "IF" in slug is tricky — check for "-if-" or slug starts with "if-"
+    if (!cardType && (slug.includes("-if-") || slug.startsWith("if-"))) cardType = "IF";
+  }
+
+  const rating   = $("[class*='card__rating'], [class*='card-rating']").first().text().trim();
+  const position = $("[class*='card__position'], [class*='card-position']").first().text().trim();
+  const club     = $("[class*='card__club'], .club-name, .player-club").first().text().trim();
+  const nation   = $("[class*='card__nation'], .nation-name, .player-nation").first().text().trim();
 
   const stats = {};
   const statLabels = ["PAC", "SHO", "PAS", "DRI", "DEF", "PHY"];
-  $(".fc25-card__attribute-value").each((i, el) => {
+  $("[class*='card__attribute-value'], [class*='attribute-value']").each((i, el) => {
     if (i < 6) stats[statLabels[i]] = $(el).text().trim();
   });
 
@@ -119,6 +155,8 @@ function parsePlayer(html, url) {
   const bodyText = $("body").text();
   const consoleMatch = bodyText.match(/console market is ([\d,]+)\s*coins?/i);
   const pcMatch      = bodyText.match(/\bpc is ([\d,]+)\s*coins?/i);
+
+  console.log("[FUTWIZ] Parsed:", { name, cardType, rating, position });
 
   const pricePS  = consoleMatch ? consoleMatch[1] + " coins" : "N/A";
   const priceXB  = consoleMatch ? consoleMatch[1] + " coins" : "N/A";
