@@ -33,24 +33,19 @@ module.exports = {
         .map(([k, v]) => `**${k}** ${v}`)
         .join("  |  ") || "Stats unavailable";
 
+      const title = [p.rating, p.cardType, p.name].filter(Boolean).join(" ");
+
       const embed = new EmbedBuilder()
         .setColor(0x3B82F6)
-        .setTitle(`${p.rating ? p.rating + " " : ""}${p.position ? "[" + p.position + "] " : ""}${p.name}`)
-        .setDescription(
-          [
-            p.cardType ? `🃏 **Card:** ${p.cardType}` : "",
-            p.club     ? `🏟️ **Club:** ${p.club}`     : "",
-            p.nation   ? `🌍 **Nation:** ${p.nation}`  : "",
-          ].filter(Boolean).join("\n") || "No details found"
-        )
+        .setTitle(title)
         .addFields(
           { name: "📊 Stats", value: statsLine, inline: false },
           {
             name: "💰 Prices",
-            value: `🎮 **PS:** ${p.prices.ps}\n🎮 **Xbox:** ${p.prices.xbox}\n💻 **PC:** ${p.prices.pc}`,
+            value: `🎮 PS: ${p.prices.ps}\n🎮 Xbox: ${p.prices.xbox}\n💻 PC: ${p.prices.pc}`,
             inline: false,
           },
-          { name: "🔗 Full Card", value: `[View on FUTWIZ](${p.url})`, inline: false },
+          { name: "🔗 FUTWIZ", value: `[View card](${p.url})`, inline: false },
         )
         .setFooter({ text: "Data from FUTWIZ • Prices update live" })
         .setTimestamp();

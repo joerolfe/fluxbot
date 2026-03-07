@@ -29,21 +29,22 @@ module.exports = {
         return interaction.editReply(`❌ Couldn't find **${name}** on FUTWIZ. Try a more specific name.`);
       }
 
+      const title = [p.rating, p.cardType, p.name].filter(Boolean).join(" ");
+      const statsLine = Object.entries(p.stats)
+        .map(([k, v]) => `**${k}** ${v}`)
+        .join("  |  ") || "Stats unavailable";
+
       const embed = new EmbedBuilder()
         .setColor(0x22C55E)
-        .setTitle(`💰 Price Check — ${p.rating ? p.rating + " " : ""}${p.name}`)
-        .setDescription(
-          p.cardType
-            ? `**${p.cardType}** | ${p.position || ""} | ${p.club || ""}`
-            : `${p.position || ""} | ${p.club || ""}`
-        )
+        .setTitle(`💰 ${title}`)
         .addFields(
-          { name: "🎮 PS Price",    value: p.prices.ps,   inline: true },
-          { name: "🎮 Xbox Price",  value: p.prices.xbox, inline: true },
-          { name: "💻 PC Price",    value: p.prices.pc,   inline: true },
-          { name: "🔗 Full Listing", value: `[View on FUTWIZ](${p.url})`, inline: false },
+          { name: "📊 Stats", value: statsLine, inline: false },
+          { name: "🎮 PS",   value: p.prices.ps,   inline: true },
+          { name: "🎮 Xbox", value: p.prices.xbox, inline: true },
+          { name: "💻 PC",   value: p.prices.pc,   inline: true },
+          { name: "🔗 FUTWIZ", value: `[View card](${p.url})`, inline: false },
         )
-        .setFooter({ text: "Live data from FUTWIZ • Buy smart 📈" })
+        .setFooter({ text: "Live data from FUTWIZ" })
         .setTimestamp();
 
       await interaction.editReply({ embeds: [embed] });
