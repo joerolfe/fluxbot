@@ -139,17 +139,9 @@ function parsePlayer(html, url) {
 
   const rating   = $("[class*='card__rating'], [class*='card-rating']").first().text().trim();
   const position = $("[class*='card__position'], [class*='card-position']").first().text().trim();
-  // Club/nation: FUTWIZ uses filter links like /fc26/players?teams[]=243 and ?nations[]=18
-  // The flag/badge img inside those links has the name as alt text
-  const club   = $("a[href*='teams[]=']").find("img").first().attr("alt") || "";
-  const nation = $("a[href*='nations[]=']").find("img").first().attr("alt") ||
-                 // Fallback: img right before the 'Nationality Flag' label img
-                 (() => {
-                   const flagLabel = $("img[alt='Nationality Flag']");
-                   return flagLabel.length ? flagLabel.prev("img").attr("alt") || "" : "";
-                 })();
-  console.log("[FUTWIZ] Team link HTML:", $("a[href*='teams[]=']").first().prop("outerHTML")?.substring(0, 300));
-  console.log("[FUTWIZ] Nation link HTML:", $("a[href*='nations[]=']").first().prop("outerHTML")?.substring(0, 300));
+  // Club/nation: text node inside the filter links e.g. /fc26/players?teams[]=243
+  const club   = $("a[href*='teams[]=']").clone().children().remove().end().text().trim();
+  const nation = $("a[href*='nations[]=']").clone().children().remove().end().text().trim();
 
   const stats = {};
   const statLabels = ["PAC", "SHO", "PAS", "DRI", "DEF", "PHY"];
