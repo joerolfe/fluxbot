@@ -131,16 +131,22 @@ async function searchPlayer(name, version = null) {
     await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
     await new Promise(r => setTimeout(r, 2000));
 
-    // Try to get prices from Next.js page data
+    // Extract prices from the chart data object in window scope
+    // FUTWIZ price chart uses {console: [[ts, price], ...], pc: [[ts, price], ...]}
     const jsPrices = await page.evaluate(() => {
       try {
-        const nd = window.__NEXT_DATA__?.props?.pageProps;
-        const keys = nd ? Object.keys(nd) : [];
-        console.log("[FUTWIZ-CLIENT] __NEXT_DATA__ pageProps keys:", keys.join(", "));
-        const p = nd?.player || nd?.card || nd?.data;
-        if (p) {
-          console.log("[FUTWIZ-CLIENT] Player keys:", Object.keys(p).filter(k => /price|cost|coin/i.test(k)).join(", "));
-          return { console: p.console_price ?? p.ps_price ?? p.consoleprice ?? null, pc: p.pc_price ?? p.pcprice ?? null };
+        for (const key of Object.keys(window)) {
+          const val = window[key];
+          if (val && typeof val === "object" && !Array.isArray(val) &&
+              Array.isArray(val.console) && Array.isArray(val.pc)) {
+            const latest = arr => arr.length ? arr[arr.length - 1] : null;
+            const cl = latest(val.console);
+            const pl = latest(val.pc);
+            return {
+              console: Array.isArray(cl) ? cl[1] : cl,
+              pc: Array.isArray(pl) ? pl[1] : pl,
+            };
+          }
         }
       } catch(e) {}
       return null;
@@ -151,6 +157,13 @@ async function searchPlayer(name, version = null) {
     if (!result.rating)   result.rating   = ratingFromSearch;
     if (!result.position) result.position = positionFromSearch;
     if (Object.keys(result.stats).length === 0) result.stats = statsFromSearch;
+    // Override prices with JS chart data if available (more reliable than bodyText regex)
+    if (jsPrices) {
+      const fmt = v => (!v || v === 0) ? "N/A" : Number(v).toLocaleString("en-GB") + " coins";
+      result.prices.ps   = fmt(jsPrices.console);
+      result.prices.xbox = fmt(jsPrices.console);
+      result.prices.pc   = fmt(jsPrices.pc);
+    }
     return result;
   } finally {
     await page.close();
