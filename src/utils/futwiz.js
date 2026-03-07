@@ -111,33 +111,10 @@ async function searchPlayer(name, version = null) {
 function parsePlayer(html, url) {
   const $ = cheerio.load(html);
 
-  // Name: H1 or any card name element
-  const name = (
-    $("h1").first().text().trim() ||
-    $("[class*='card__name'], [class*='player-name']").first().text().trim()
-  ).replace(/\s+/g, " ").trim();
-
-  // Card type: look for version/type badge elements, then fall back to URL slug
-  let cardType = (
-    $("[class*='card__type'], [class*='card-type'], [class*='card__version'], [class*='card-version']").first().text().trim() ||
-    $("[class*='version'], [class*='card-badge'], [class*='card__badge']").first().text().trim()
-  );
-  if (!cardType) {
-    // Extract from URL slug — e.g. /en/fc26/players/12345/toty-mbappe → "TOTY"
-    const slug = url.split("/").pop() || "";
-    const versionKeywords = [
-      "toty", "tots", "totw", "fut-birthday", "winter-wildcards", "thunderstruck",
-      "rttk", "ucl", "icon", "hero", "futties", "gold", "silver", "bronze",
-    ];
-    for (const kw of versionKeywords) {
-      if (slug.toLowerCase().includes(kw)) {
-        cardType = kw.replace(/-/g, " ").toUpperCase();
-        break;
-      }
-    }
-    // "IF" in slug is tricky — check for "-if-" or slug starts with "if-"
-    if (!cardType && (slug.includes("-if-") || slug.startsWith("if-"))) cardType = "IF";
-  }
+  // H1 contains "PlayerNamefc26 CARDTYPE" — e.g. "Kylian Mbappefc26 TOTY"
+  const rawName = $("h1").first().text().trim() || $("[class*='card__name'], [class*='player-name']").first().text().trim();
+  const name     = rawName.replace(/fc2\d.*$/i, "").trim() || rawName;
+  const cardType = (rawName.match(/fc2\d\s+(.+)$/i) || [])[1]?.trim() || "";
 
   const rating   = $("[class*='card__rating'], [class*='card-rating']").first().text().trim();
   const position = $("[class*='card__position'], [class*='card-position']").first().text().trim();
