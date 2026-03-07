@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:api.futdatabase.com)",
+      "WebFetch(domain:fut.gg)",
+      "WebFetch(domain:futnext.com)",
+      "Bash(npm install:*)"
+    ]
+  }
+}
