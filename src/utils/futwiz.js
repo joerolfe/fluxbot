@@ -139,13 +139,17 @@ function parsePlayer(html, url) {
 
   const rating   = $("[class*='card__rating'], [class*='card-rating']").first().text().trim();
   const position = $("[class*='card__position'], [class*='card-position']").first().text().trim();
-  const club   = $("a[href*='/club']").first().text().trim();
-  const nation = $("a[href*='/nation']").first().text().trim();
-  // Debug: log all img alts and all anchor hrefs containing player info keywords
-  const imgAlts  = $("img").map((_, el) => $(el).attr("alt") || "").get().filter(Boolean);
-  const linkHrefs = $("a[href]").map((_, el) => $(el).attr("href") || "").get().filter(h => /club|nation|team|league/i.test(h));
-  console.log("[FUTWIZ] Img alts:", imgAlts.slice(0, 15));
-  console.log("[FUTWIZ] Relevant hrefs:", linkHrefs.slice(0, 10));
+  // Club/nation: FUTWIZ uses filter links like /fc26/players?teams[]=243 and ?nations[]=18
+  // The flag/badge img inside those links has the name as alt text
+  const club   = $("a[href*='teams[]=']").find("img").first().attr("alt") || "";
+  const nation = $("a[href*='nations[]=']").find("img").first().attr("alt") ||
+                 // Fallback: img right before the 'Nationality Flag' label img
+                 (() => {
+                   const flagLabel = $("img[alt='Nationality Flag']");
+                   return flagLabel.length ? flagLabel.prev("img").attr("alt") || "" : "";
+                 })();
+  console.log("[FUTWIZ] Club img alt:", $("a[href*='teams[]=']").find("img").first().attr("alt"));
+  console.log("[FUTWIZ] Nation img alt:", $("a[href*='nations[]=']").find("img").first().attr("alt"));
 
   const stats = {};
   const statLabels = ["PAC", "SHO", "PAS", "DRI", "DEF", "PHY"];
