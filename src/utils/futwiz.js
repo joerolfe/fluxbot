@@ -155,7 +155,11 @@ function parsePlayer(html, url) {
   const consoleMatch = bodyText.match(/console market is ([\d,]+)\s*coins?/i);
   const pcMatch      = bodyText.match(/\bpc is ([\d,]+)\s*coins?/i);
 
+  // Log price sentence snippet for debugging
+  const priceIdx = bodyText.search(/console market|pc is/i);
   console.log("[FUTWIZ] Parsed:", { name, cardType, rating, position, club, nation });
+  console.log("[FUTWIZ] Stats:", stats);
+  console.log("[FUTWIZ] Price snippet:", priceIdx >= 0 ? bodyText.substring(Math.max(0, priceIdx - 30), priceIdx + 80) : "NOT FOUND");
 
   const pricePS  = consoleMatch ? consoleMatch[1] + " coins" : "N/A";
   const priceXB  = consoleMatch ? consoleMatch[1] + " coins" : "N/A";
