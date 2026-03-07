@@ -111,10 +111,19 @@ async function searchPlayer(name, version = null) {
       }
     }
 
+    // Extract rating and position from the search result card text (always reliable)
+    // Format: "96\nST\nMbappe\n..."
+    const textParts = target.text.split("\n").map(s => s.trim()).filter(Boolean);
+    const ratingFromSearch   = /^\d+$/.test(textParts[0]) ? textParts[0] : "";
+    const positionFromSearch = /^[A-Z]{1,3}$/.test(textParts[1]) ? textParts[1] : "";
+
     const fullUrl = target.href.startsWith("http") ? target.href : `${BASE}${target.href}`;
     await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
     await new Promise(r => setTimeout(r, 2000));
-    return parsePlayer(await page.content(), fullUrl);
+    const result = parsePlayer(await page.content(), fullUrl);
+    if (!result.rating)   result.rating   = ratingFromSearch;
+    if (!result.position) result.position = positionFromSearch;
+    return result;
   } finally {
     await page.close();
   }
@@ -130,13 +139,13 @@ function parsePlayer(html, url) {
 
   const rating   = $("[class*='card__rating'], [class*='card-rating']").first().text().trim();
   const position = $("[class*='card__position'], [class*='card-position']").first().text().trim();
-  // Club/nation are linked pages — extract from anchor hrefs
-  const club   = $("a[href*='/fc26/club/'], a[href*='/clubs/']").first().text().trim() ||
-                 $("a[href*='/club/']").first().text().trim();
-  const nation = $("a[href*='/fc26/nation/'], a[href*='/nations/']").first().text().trim() ||
-                 $("a[href*='/nation/']").first().text().trim();
-  console.log("[FUTWIZ] Club link text:", $("a[href*='/club']").map((_, el) => $(el).text().trim()).get().slice(0, 5));
-  console.log("[FUTWIZ] Nation link text:", $("a[href*='/nation']").map((_, el) => $(el).text().trim()).get().slice(0, 5));
+  const club   = $("a[href*='/club']").first().text().trim();
+  const nation = $("a[href*='/nation']").first().text().trim();
+  // Debug: log all img alts and all anchor hrefs containing player info keywords
+  const imgAlts  = $("img").map((_, el) => $(el).attr("alt") || "").get().filter(Boolean);
+  const linkHrefs = $("a[href]").map((_, el) => $(el).attr("href") || "").get().filter(h => /club|nation|team|league/i.test(h));
+  console.log("[FUTWIZ] Img alts:", imgAlts.slice(0, 15));
+  console.log("[FUTWIZ] Relevant hrefs:", linkHrefs.slice(0, 10));
 
   const stats = {};
   const statLabels = ["PAC", "SHO", "PAS", "DRI", "DEF", "PHY"];
