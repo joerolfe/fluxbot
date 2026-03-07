@@ -86,14 +86,18 @@ async function searchPlayer(name, version = null) {
       } else {
         // Fall back: visit each candidate page until cardType matches
         console.log("[FUTWIZ] No version match in search results, visiting pages...");
+        const isGold = ["gold", "rare gold", "common gold"].some(g => v.includes(g));
         let firstResult = null;
-        for (const card of candidates.slice(0, 5)) {
+        for (const card of candidates) {
           const fullUrl = card.href.startsWith("http") ? card.href : `${BASE}${card.href}`;
           await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
           await new Promise(r => setTimeout(r, 2000));
           const result = parsePlayer(await page.content(), fullUrl);
           if (!firstResult) firstResult = result;
-          if (result.cardType && result.cardType.toLowerCase().includes(v)) return result;
+          const ct = (result.cardType || "").toLowerCase();
+          if (ct.includes(v)) return result;
+          // Base gold cards often have no special cardType label
+          if (isGold && !result.cardType) return result;
         }
         return firstResult;
       }
