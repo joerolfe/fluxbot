@@ -166,9 +166,11 @@ function parsePlayer(html, url) {
   const consoleMatch = bodyText.match(/console market is ([\d,]+)\s*coins?/i);
   const pcMatch      = bodyText.match(/\bpc is ([\d,]+)\s*coins?/i);
 
-  const priceIdx = bodyText.search(/console|playstation|xbox|pc is/i);
   console.log("[FUTWIZ] Parsed:", { name, cardType, rating, position, club, nation });
-  console.log("[FUTWIZ] Price snippet:", priceIdx >= 0 ? bodyText.substring(Math.max(0, priceIdx - 20), priceIdx + 120) : "NOT FOUND");
+  // Log JS price data to understand structure for gold cards
+  const scripts = $("script").map((_, el) => $(el).html() || "").get().join("\n");
+  const jsIdx = scripts.search(/console.*?price|price.*?console|'console'|"console"/i);
+  console.log("[FUTWIZ] JS price snippet:", jsIdx >= 0 ? scripts.substring(Math.max(0, jsIdx - 50), jsIdx + 300) : "NOT FOUND");
 
   const fmtPrice = (val) => (!val || val === "0") ? "N/A" : val + " coins";
   const pricePS  = fmtPrice(consoleMatch?.[1]);
