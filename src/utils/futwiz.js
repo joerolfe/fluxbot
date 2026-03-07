@@ -148,8 +148,8 @@ function parsePlayer(html, url) {
                    const flagLabel = $("img[alt='Nationality Flag']");
                    return flagLabel.length ? flagLabel.prev("img").attr("alt") || "" : "";
                  })();
-  console.log("[FUTWIZ] Club img alt:", $("a[href*='teams[]=']").find("img").first().attr("alt"));
-  console.log("[FUTWIZ] Nation img alt:", $("a[href*='nations[]=']").find("img").first().attr("alt"));
+  console.log("[FUTWIZ] Team link HTML:", $("a[href*='teams[]=']").first().prop("outerHTML")?.substring(0, 300));
+  console.log("[FUTWIZ] Nation link HTML:", $("a[href*='nations[]=']").first().prop("outerHTML")?.substring(0, 300));
 
   const stats = {};
   const statLabels = ["PAC", "SHO", "PAS", "DRI", "DEF", "PHY"];
