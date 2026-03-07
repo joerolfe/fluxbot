@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const { searchPlayer } = require("../utils/futwiz");
+const { searchPlayer, VERSIONS } = require("../utils/futwiz");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -11,8 +11,15 @@ module.exports = {
         .setRequired(true))
     .addStringOption(opt =>
       opt.setName("version")
-        .setDescription("Card version — e.g. TOTY, IF, RTTK, Gold")
-        .setRequired(true)),
+        .setDescription("Card version — e.g. TOTY, IF, Gold")
+        .setRequired(true)
+        .setAutocomplete(true)),
+
+  async autocomplete(interaction) {
+    const focused = interaction.options.getFocused().toLowerCase();
+    const filtered = VERSIONS.filter(v => v.toLowerCase().includes(focused));
+    await interaction.respond(filtered.slice(0, 25).map(v => ({ name: v, value: v }))).catch(() => {});
+  },
 
   async execute(interaction) {
     const name    = interaction.options.getString("name");
@@ -27,7 +34,7 @@ module.exports = {
       const p = await searchPlayer(name, version);
 
       if (!p || !p.name) {
-        return interaction.editReply(`❌ Couldn't find **${name}** on FUTWIZ. Try a more specific name.`);
+        return interaction.editReply(`❌ Couldn't find **${name}** on FUTWIZ. Try the full name.`);
       }
 
       const statsLine = Object.entries(p.stats)
@@ -54,8 +61,10 @@ module.exports = {
           },
           { name: "🔗 FUTWIZ", value: `[View card](${p.url})`, inline: false },
         )
-        .setFooter({ text: "Data from FUTWIZ • Prices update live" })
+        .setFooter({ text: p.versionFound ? "Data from FUTWIZ • Prices update live" : `⚠️ ${version} version not found — showing closest match` })
         .setTimestamp();
+
+      if (p.cardImage) embed.setThumbnail(p.cardImage);
 
       await interaction.editReply({ embeds: [embed] });
     } catch (err) {

@@ -31,9 +31,15 @@ for (const file of fs.readdirSync(cmdDir).filter(f => f.endsWith(".js"))) {
 }
 
 client.on(Events.InteractionCreate, async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
+
+  if (interaction.isAutocomplete()) {
+    if (command.autocomplete) await command.autocomplete(interaction).catch(() => {});
+    return;
+  }
+
+  if (!interaction.isChatInputCommand()) return;
   try {
     await command.execute(interaction);
   } catch (e) {

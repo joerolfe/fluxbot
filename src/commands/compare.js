@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const { searchPlayer } = require("../utils/futwiz");
+const { searchPlayer, VERSIONS } = require("../utils/futwiz");
 
 function statBar(value) {
   const n = parseInt(value);
@@ -22,10 +22,18 @@ module.exports = {
         .setRequired(true))
     .addStringOption(opt =>
       opt.setName("version1")
-        .setDescription("Card version for player 1 — e.g. TOTY, Gold"))
+        .setDescription("Card version for player 1 — e.g. TOTY, Gold")
+        .setAutocomplete(true))
     .addStringOption(opt =>
       opt.setName("version2")
-        .setDescription("Card version for player 2 — e.g. TOTY, Gold")),
+        .setDescription("Card version for player 2 — e.g. TOTY, Gold")
+        .setAutocomplete(true)),
+
+  async autocomplete(interaction) {
+    const focused = interaction.options.getFocused().toLowerCase();
+    const filtered = VERSIONS.filter(v => v.toLowerCase().includes(focused));
+    await interaction.respond(filtered.slice(0, 25).map(v => ({ name: v, value: v }))).catch(() => {});
+  },
 
   async execute(interaction) {
     const p1Name  = interaction.options.getString("player1");

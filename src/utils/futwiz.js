@@ -9,18 +9,57 @@ puppeteer.use(StealthPlugin());
 const BASE = "https://www.futwiz.com";
 let _browser = null;
 
+// ── Cache ────────────────────────────────────────────────────────────────────
+const cache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function getCached(key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.time > CACHE_TTL) { cache.delete(key); return null; }
+  return entry.data;
+}
+
+function setCached(key, data) {
+  cache.set(key, { data, time: Date.now() });
+}
+
+// ── Version aliases ───────────────────────────────────────────────────────────
+const VERSION_ALIASES = {
+  "inform":            "IF",
+  "in form":           "IF",
+  "team of the year":  "TOTY",
+  "team of the season":"TOTS",
+  "team of the week":  "TOTW",
+  "road to the knockouts": "RTTK",
+  "player of the month":   "POTM",
+  "man of the match":      "MOTM",
+  "rare gold":   "Gold",
+  "gold rare":   "Gold",
+  "common gold": "Gold",
+};
+
+function normalizeVersion(v) {
+  if (!v) return null;
+  return VERSION_ALIASES[v.toLowerCase()] || v;
+}
+
+// ── Common versions for autocomplete ─────────────────────────────────────────
+const VERSIONS = [
+  "Gold", "Silver", "Bronze", "IF", "TOTY", "TOTS", "TOTW", "RTTK",
+  "Icon", "Hero", "POTM", "MOTM", "FUT Birthday", "Futties", "UCL",
+  "FUT Captains", "Thunderstruck", "Winter Wildcards", "Future Stars",
+];
+
 function getChromiumPath() {
   const candidates = [process.env.CHROMIUM_PATH];
-
   for (const name of ["chromium", "chromium-browser", "google-chrome", "google-chrome-stable"]) {
     try {
       const p = execSync(`which ${name}`, { stdio: ["pipe", "pipe", "pipe"] }).toString().trim();
       if (p) candidates.push(p);
     } catch {}
   }
-
   candidates.push("/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome");
-
   for (const p of candidates) {
     if (p && fs.existsSync(p)) return p;
   }
@@ -39,11 +78,15 @@ async function getBrowser() {
 }
 
 async function searchPlayer(name, version = null) {
+  version = normalizeVersion(version);
+  const cacheKey = `${name.toLowerCase()}:${(version || "").toLowerCase()}`;
+  const cached = getCached(cacheKey);
+  if (cached) { console.log("[FUTWIZ] Cache hit:", cacheKey); return cached; }
+
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
     await page.setExtraHTTPHeaders({ "Accept-Language": "en-GB,en;q=0.9" });
-
     await page.goto(`${BASE}/en/fc26/players?search=${encodeURIComponent(name)}`, { waitUntil: "networkidle2", timeout: 30000 });
 
     const searchInput = await page.$('input[type="search"], input[type="text"][placeholder], input[name="search"], input[name="q"], input[name="s"]');
@@ -52,7 +95,7 @@ async function searchPlayer(name, version = null) {
       await searchInput.type(name, { delay: 80 });
     }
 
-    await new Promise(r => setTimeout(r, 5000));
+    await new Promise(r => setTimeout(r, 3000));
 
     const normalized = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
     const cards = await page.evaluate(() =>
@@ -71,28 +114,26 @@ async function searchPlayer(name, version = null) {
 
     const nameMatches = cards.filter(c => c.href.toLowerCase().includes(normalized));
     const candidates = nameMatches.length > 0 ? nameMatches : cards;
-    console.log("[FUTWIZ] Candidates:", JSON.stringify(candidates.slice(0, 5).map(c => ({ href: c.href, imgSrc: c.imgSrc }))));
 
     if (!candidates.length) return null;
 
-    // Extract card type from card image URL — e.g. .../cards/toty/22083.png → "toty"
     function cardTypeFromSrc(src) {
       const m = src.match(/\/cards\/([^/?#]+)/i);
       return m ? m[1].toLowerCase().replace(/-/g, " ") : "";
     }
 
-    // Extract numeric ID from href for sorting
     function hrefId(href) {
       const m = href.match(/\/(\d+)(?:[/?#]|$)/);
       return m ? parseInt(m[1], 10) : Infinity;
     }
 
     let target = candidates[0];
+    let versionFound = !version; // true if no version requested
+
     if (version) {
       const v = version.toLowerCase();
-      const isGold = v === "gold" || v === "rare gold";
+      const isGold = v === "gold";
 
-      // Try matching from image src or href
       const versionMatch = candidates.find(c => {
         const ct = cardTypeFromSrc(c.imgSrc);
         return ct.includes(v) || c.href.toLowerCase().includes(v) || c.imgAlt.toLowerCase().includes(v);
@@ -100,14 +141,14 @@ async function searchPlayer(name, version = null) {
 
       if (versionMatch) {
         target = versionMatch;
+        versionFound = true;
         console.log("[FUTWIZ] Version matched from search results:", target.href);
       } else if (isGold) {
-        // Base gold card = lowest numeric ID (original card, added first)
         const sorted = [...candidates].sort((a, b) => hrefId(a.href) - hrefId(b.href));
         target = sorted[0];
+        versionFound = true;
         console.log("[FUTWIZ] Gold: picked lowest-ID candidate:", target.href);
       } else {
-        // Visit candidate pages and check card type from H1 (reliable for all rarities)
         console.log("[FUTWIZ] Visiting pages to find version:", v);
         let found = null;
         for (const card of candidates.slice(0, 5)) {
@@ -116,21 +157,14 @@ async function searchPlayer(name, version = null) {
           await new Promise(r => setTimeout(r, 1000));
           const h1 = await page.evaluate(() => document.querySelector("h1")?.innerText?.trim() || "");
           const ct = (h1.match(/fc\s*2\d\s+(.+)$/i) || [])[1]?.trim().toLowerCase() || "";
-          console.log("[FUTWIZ] Candidate H1 cardType:", ct, "url:", card.href);
-          if (ct.includes(v)) { found = card; break; }
+          if (ct.includes(v)) { found = card; versionFound = true; break; }
         }
-        if (found) {
-          target = found;
-          console.log("[FUTWIZ] Version matched via page visit:", target.href);
-        } else {
-          target = candidates[0];
-          console.log("[FUTWIZ] No version match, using first result");
-        }
+        target = found || candidates[0];
+        if (!found) console.log("[FUTWIZ] No version match, using first result");
       }
     }
 
-    // Extract rating, position, and stats from search result card text — always reliable
-    // Format: "96\nST\nMbappe\nLM\nLW\nPAC\nSHO\nPAS\nDRI\nDEF\nPHY\n99\n96\n85\n96\n54\n81\n..."
+    // Extract rating, position, and stats from search result card text
     const textParts = target.text.split("\n").map(s => s.trim()).filter(Boolean);
     const ratingFromSearch   = /^\d+$/.test(textParts[0]) ? textParts[0] : "";
     const positionFromSearch = /^[A-Z]{1,3}$/.test(textParts[1]) ? textParts[1] : "";
@@ -143,14 +177,12 @@ async function searchPlayer(name, version = null) {
         if (afterLabels[i] && /^\d+$/.test(afterLabels[i])) statsFromSearch[label] = afterLabels[i];
       });
     }
-    console.log("[FUTWIZ] From search text:", { ratingFromSearch, positionFromSearch, statsFromSearch });
 
     const fullUrl = target.href.startsWith("http") ? target.href : `${BASE}${target.href}`;
     await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
     await new Promise(r => setTimeout(r, 2000));
 
-    // Extract prices from the chart data object in window scope
-    // FUTWIZ price chart uses {console: [[ts, price], ...], pc: [[ts, price], ...]}
+    // Extract prices from the JS chart data in window scope
     const jsPrices = await page.evaluate(() => {
       try {
         for (const key of Object.keys(window)) {
@@ -174,13 +206,15 @@ async function searchPlayer(name, version = null) {
     if (!result.rating)   result.rating   = ratingFromSearch;
     if (!result.position) result.position = positionFromSearch;
     if (Object.keys(result.stats).length === 0) result.stats = statsFromSearch;
-    // Override prices with JS chart data if available (more reliable than bodyText regex)
     if (jsPrices) {
       const fmt = v => (!v || v === 0) ? "N/A" : Number(v).toLocaleString("en-GB") + " coins";
       result.prices.ps   = fmt(jsPrices.console);
       result.prices.xbox = fmt(jsPrices.console);
       result.prices.pc   = fmt(jsPrices.pc);
     }
+    result.versionFound = versionFound;
+
+    setCached(cacheKey, result);
     return result;
   } finally {
     await page.close();
@@ -190,16 +224,17 @@ async function searchPlayer(name, version = null) {
 function parsePlayer(html, url) {
   const $ = cheerio.load(html);
 
-  // H1 contains "PlayerName FC 26 CARDTYPE" — e.g. "Kylian Mbappe FC 26 TOTY"
-  const rawName = $("h1").first().text().trim() || $("[class*='card__name'], [class*='player-name']").first().text().trim();
+  const rawName  = $("h1").first().text().trim() || $("[class*='card__name'], [class*='player-name']").first().text().trim();
   const name     = rawName.replace(/\s*fc\s*2\d.*$/i, "").trim() || rawName;
   const cardType = (rawName.match(/fc\s*2\d\s+(.+)$/i) || [])[1]?.trim() || "";
 
   const rating   = $("[class*='card__rating'], [class*='card-rating']").first().text().trim();
   const position = $("[class*='card__position'], [class*='card-position']").first().text().trim();
-  // Club/nation: text node inside the filter links e.g. /fc26/players?teams[]=243
-  const club   = $("a[href*='teams[]=']").first().clone().children().remove().end().text().trim();
-  const nation = $("a[href*='nations[]=']").first().clone().children().remove().end().text().trim();
+  const club     = $("a[href*='teams[]=']").first().clone().children().remove().end().text().trim();
+  const nation   = $("a[href*='nations[]=']").first().clone().children().remove().end().text().trim();
+
+  // Card image from og:image meta tag
+  const cardImage = $("meta[property='og:image']").attr("content") || "";
 
   const stats = {};
   const statLabels = ["PAC", "SHO", "PAS", "DRI", "DEF", "PHY"];
@@ -207,8 +242,6 @@ function parsePlayer(html, url) {
     if (i < 6) stats[statLabels[i]] = $(el).text().trim();
   });
 
-  // Prices are in a sentence like:
-  // "...xbox and playstation console market is 1,860,000 coins... and pc is 1,860,000 coins..."
   const bodyText = $("body").text();
   const consoleMatch = bodyText.match(/console market is ([\d,]+)\s*coins?/i);
   const pcMatch      = bodyText.match(/\bpc is ([\d,]+)\s*coins?/i);
@@ -221,11 +254,11 @@ function parsePlayer(html, url) {
   const pricePCn = fmtPrice(pcMatch?.[1]);
 
   return {
-    name, rating, position, club, nation, cardType,
+    name, rating, position, club, nation, cardType, cardImage,
     stats,
     prices: { ps: pricePS, xbox: priceXB, pc: pricePCn },
     url,
   };
 }
 
-module.exports = { searchPlayer };
+module.exports = { searchPlayer, VERSIONS };
