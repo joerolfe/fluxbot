@@ -11,7 +11,8 @@ module.exports = {
         .setRequired(true))
     .addStringOption(opt =>
       opt.setName("version")
-        .setDescription("Card version — e.g. TOTY, IF, RTTK, Gold")),
+        .setDescription("Card version — e.g. TOTY, IF, RTTK, Gold")
+        .setRequired(true)),
 
   async execute(interaction) {
     const name    = interaction.options.getString("name");

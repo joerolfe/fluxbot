@@ -123,10 +123,10 @@ async function searchPlayer(name, version = null) {
 function parsePlayer(html, url) {
   const $ = cheerio.load(html);
 
-  // H1 contains "PlayerNamefc26 CARDTYPE" — e.g. "Kylian Mbappefc26 TOTY"
+  // H1 contains "PlayerName FC 26 CARDTYPE" — e.g. "Kylian Mbappe FC 26 TOTY"
   const rawName = $("h1").first().text().trim() || $("[class*='card__name'], [class*='player-name']").first().text().trim();
-  const name     = rawName.replace(/fc2\d.*$/i, "").trim() || rawName;
-  const cardType = (rawName.match(/fc2\d\s+(.+)$/i) || [])[1]?.trim() || "";
+  const name     = rawName.replace(/\s*fc\s*2\d.*$/i, "").trim() || rawName;
+  const cardType = (rawName.match(/fc\s*2\d\s+(.+)$/i) || [])[1]?.trim() || "";
 
   const rating   = $("[class*='card__rating'], [class*='card-rating']").first().text().trim();
   const position = $("[class*='card__position'], [class*='card-position']").first().text().trim();
@@ -146,9 +146,9 @@ function parsePlayer(html, url) {
   const pcMatch      = bodyText.match(/\bpc is ([\d,]+)\s*coins?/i);
 
   console.log("[FUTWIZ] Parsed:", { name, cardType, rating, position, club, nation });
-  // Log all class names on the page to find club/nation selectors
-  const allClasses = [...new Set($([ '[class]' ]).map((_, el) => $(el).attr('class')).get())].filter(c => /club|nation|team|country/i.test(c));
-  console.log("[FUTWIZ] Club/nation classes on page:", allClasses.slice(0, 20));
+  // Log all classes to find the right selectors
+  const allClasses = [...new Set($('[class]').map((_, el) => $(el).attr('class')).get())];
+  console.log("[FUTWIZ] All classes:", allClasses.slice(0, 40));
 
   const pricePS  = consoleMatch ? consoleMatch[1] + " coins" : "N/A";
   const priceXB  = consoleMatch ? consoleMatch[1] + " coins" : "N/A";
