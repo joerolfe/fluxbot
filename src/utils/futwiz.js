@@ -59,47 +59,37 @@ async function searchPlayer(name, version = null) {
       Array.from(document.querySelectorAll("a[href*='/player/']")).map(a => ({
         href: a.getAttribute("href"),
         text: a.innerText.trim(),
-        title: a.getAttribute("title") || "",
-        ariaLabel: a.getAttribute("aria-label") || "",
-        parentText: a.parentElement?.innerText?.trim() || "",
         imgAlt: a.querySelector("img")?.getAttribute("alt") || "",
+        imgSrc: a.querySelector("img")?.getAttribute("src") || "",
       }))
     );
 
     const nameMatches = cards.filter(c => c.href.toLowerCase().includes(normalized));
     const candidates = nameMatches.length > 0 ? nameMatches : cards;
-    console.log("[FUTWIZ] Candidates:", JSON.stringify(candidates.slice(0, 5)));
+    console.log("[FUTWIZ] Candidates:", JSON.stringify(candidates.slice(0, 5).map(c => ({ href: c.href, imgSrc: c.imgSrc }))));
 
     if (!candidates.length) return null;
 
-    // Version filter: first try to match from search result card data (no extra page loads needed)
+    // Extract card type from card image URL — e.g. .../cards/toty/22083.png → "toty"
+    function cardTypeFromSrc(src) {
+      const m = src.match(/\/cards\/([^/?#]+)/i);
+      return m ? m[1].toLowerCase().replace(/-/g, " ") : "";
+    }
+
     let target = candidates[0];
     if (version) {
       const v = version.toLowerCase();
+      // Match version from the card image src (fast — no extra page loads)
       const versionMatch = candidates.find(c => {
-        const fields = [c.href, c.text, c.title, c.ariaLabel, c.parentText, c.imgAlt];
-        return fields.some(f => f.toLowerCase().includes(v));
+        const ct = cardTypeFromSrc(c.imgSrc);
+        console.log("[FUTWIZ] Card type from src:", ct, "href:", c.href);
+        return ct.includes(v) || c.href.toLowerCase().includes(v) || c.imgAlt.toLowerCase().includes(v);
       });
       if (versionMatch) {
         target = versionMatch;
-        console.log("[FUTWIZ] Version matched from search results:", target.href);
+        console.log("[FUTWIZ] Version matched:", target.href, cardTypeFromSrc(target.imgSrc));
       } else {
-        // Fall back: visit each candidate page until cardType matches
-        console.log("[FUTWIZ] No version match in search results, visiting pages...");
-        const isGold = ["gold", "rare gold", "common gold"].some(g => v.includes(g));
-        let firstResult = null;
-        for (const card of candidates) {
-          const fullUrl = card.href.startsWith("http") ? card.href : `${BASE}${card.href}`;
-          await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
-          await new Promise(r => setTimeout(r, 2000));
-          const result = parsePlayer(await page.content(), fullUrl);
-          if (!firstResult) firstResult = result;
-          const ct = (result.cardType || "").toLowerCase();
-          if (ct.includes(v)) return result;
-          // Base gold cards often have no special cardType label
-          if (isGold && !result.cardType) return result;
-        }
-        return firstResult;
+        console.log("[FUTWIZ] No version match found, using first result");
       }
     }
 
