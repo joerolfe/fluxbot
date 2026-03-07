@@ -130,8 +130,13 @@ function parsePlayer(html, url) {
 
   const rating   = $("[class*='card__rating'], [class*='card-rating']").first().text().trim();
   const position = $("[class*='card__position'], [class*='card-position']").first().text().trim();
-  const club     = $("[class*='card__club'], .club-name, .player-club").first().text().trim();
-  const nation   = $("[class*='card__nation'], .nation-name, .player-nation").first().text().trim();
+  // Club/nation are linked pages — extract from anchor hrefs
+  const club   = $("a[href*='/fc26/club/'], a[href*='/clubs/']").first().text().trim() ||
+                 $("a[href*='/club/']").first().text().trim();
+  const nation = $("a[href*='/fc26/nation/'], a[href*='/nations/']").first().text().trim() ||
+                 $("a[href*='/nation/']").first().text().trim();
+  console.log("[FUTWIZ] Club link text:", $("a[href*='/club']").map((_, el) => $(el).text().trim()).get().slice(0, 5));
+  console.log("[FUTWIZ] Nation link text:", $("a[href*='/nation']").map((_, el) => $(el).text().trim()).get().slice(0, 5));
 
   const stats = {};
   const statLabels = ["PAC", "SHO", "PAS", "DRI", "DEF", "PHY"];
@@ -146,9 +151,6 @@ function parsePlayer(html, url) {
   const pcMatch      = bodyText.match(/\bpc is ([\d,]+)\s*coins?/i);
 
   console.log("[FUTWIZ] Parsed:", { name, cardType, rating, position, club, nation });
-  // Log all classes to find the right selectors
-  const allClasses = [...new Set($('[class]').map((_, el) => $(el).attr('class')).get())];
-  console.log("[FUTWIZ] All classes:", allClasses.slice(0, 40));
 
   const pricePS  = consoleMatch ? consoleMatch[1] + " coins" : "N/A";
   const priceXB  = consoleMatch ? consoleMatch[1] + " coins" : "N/A";
