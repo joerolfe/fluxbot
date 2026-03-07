@@ -56,12 +56,17 @@ async function searchPlayer(name, version = null) {
 
     const normalized = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
     const cards = await page.evaluate(() =>
-      Array.from(document.querySelectorAll("a[href*='/player/']")).map(a => ({
-        href: a.getAttribute("href"),
-        text: a.innerText.trim(),
-        imgAlt: a.querySelector("img")?.getAttribute("alt") || "",
-        imgSrc: a.querySelector("img")?.getAttribute("src") || "",
-      }))
+      Array.from(document.querySelectorAll("a[href*='/player/']")).map(a => {
+        const img = a.querySelector("img");
+        const imgSrc = (img && (img.getAttribute("src") || img.getAttribute("data-src") ||
+          img.getAttribute("data-lazy") || img.getAttribute("data-original") || "")) || "";
+        return {
+          href: a.getAttribute("href"),
+          text: a.innerText.trim(),
+          imgAlt: img?.getAttribute("alt") || "",
+          imgSrc,
+        };
+      })
     );
 
     const nameMatches = cards.filter(c => c.href.toLowerCase().includes(normalized));
@@ -76,18 +81,31 @@ async function searchPlayer(name, version = null) {
       return m ? m[1].toLowerCase().replace(/-/g, " ") : "";
     }
 
+    // Extract numeric ID from href for sorting
+    function hrefId(href) {
+      const m = href.match(/\/(\d+)(?:[/?#]|$)/);
+      return m ? parseInt(m[1], 10) : Infinity;
+    }
+
     let target = candidates[0];
     if (version) {
       const v = version.toLowerCase();
-      // Match version from the card image src (fast — no extra page loads)
+      const isGold = v === "gold" || v === "rare gold";
+
+      // Try matching from image src or href
       const versionMatch = candidates.find(c => {
         const ct = cardTypeFromSrc(c.imgSrc);
-        console.log("[FUTWIZ] Card type from src:", ct, "href:", c.href);
         return ct.includes(v) || c.href.toLowerCase().includes(v) || c.imgAlt.toLowerCase().includes(v);
       });
+
       if (versionMatch) {
         target = versionMatch;
-        console.log("[FUTWIZ] Version matched:", target.href, cardTypeFromSrc(target.imgSrc));
+        console.log("[FUTWIZ] Version matched:", target.href);
+      } else if (isGold) {
+        // Base gold card = lowest numeric ID (original card, added first)
+        const sorted = [...candidates].sort((a, b) => hrefId(a.href) - hrefId(b.href));
+        target = sorted[0];
+        console.log("[FUTWIZ] Gold: picked lowest-ID candidate:", target.href);
       } else {
         console.log("[FUTWIZ] No version match found, using first result");
       }
