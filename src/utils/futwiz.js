@@ -130,6 +130,23 @@ async function searchPlayer(name, version = null) {
     const fullUrl = target.href.startsWith("http") ? target.href : `${BASE}${target.href}`;
     await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
     await new Promise(r => setTimeout(r, 2000));
+
+    // Try to get prices from Next.js page data
+    const jsPrices = await page.evaluate(() => {
+      try {
+        const nd = window.__NEXT_DATA__?.props?.pageProps;
+        const keys = nd ? Object.keys(nd) : [];
+        console.log("[FUTWIZ-CLIENT] __NEXT_DATA__ pageProps keys:", keys.join(", "));
+        const p = nd?.player || nd?.card || nd?.data;
+        if (p) {
+          console.log("[FUTWIZ-CLIENT] Player keys:", Object.keys(p).filter(k => /price|cost|coin/i.test(k)).join(", "));
+          return { console: p.console_price ?? p.ps_price ?? p.consoleprice ?? null, pc: p.pc_price ?? p.pcprice ?? null };
+        }
+      } catch(e) {}
+      return null;
+    }).catch(() => null);
+    console.log("[FUTWIZ] jsPrices:", jsPrices);
+
     const result = parsePlayer(await page.content(), fullUrl);
     if (!result.rating)   result.rating   = ratingFromSearch;
     if (!result.position) result.position = positionFromSearch;
