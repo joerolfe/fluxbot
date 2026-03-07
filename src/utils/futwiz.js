@@ -111,11 +111,21 @@ async function searchPlayer(name, version = null) {
       }
     }
 
-    // Extract rating and position from the search result card text (always reliable)
-    // Format: "96\nST\nMbappe\n..."
+    // Extract rating, position, and stats from search result card text — always reliable
+    // Format: "96\nST\nMbappe\nLM\nLW\nPAC\nSHO\nPAS\nDRI\nDEF\nPHY\n99\n96\n85\n96\n54\n81\n..."
     const textParts = target.text.split("\n").map(s => s.trim()).filter(Boolean);
     const ratingFromSearch   = /^\d+$/.test(textParts[0]) ? textParts[0] : "";
     const positionFromSearch = /^[A-Z]{1,3}$/.test(textParts[1]) ? textParts[1] : "";
+    const statLabels = ["PAC", "SHO", "PAS", "DRI", "DEF", "PHY"];
+    const statsFromSearch = {};
+    const pacIdx = textParts.indexOf("PAC");
+    if (pacIdx >= 0) {
+      const afterLabels = textParts.slice(pacIdx + statLabels.length);
+      statLabels.forEach((label, i) => {
+        if (afterLabels[i] && /^\d+$/.test(afterLabels[i])) statsFromSearch[label] = afterLabels[i];
+      });
+    }
+    console.log("[FUTWIZ] From search text:", { ratingFromSearch, positionFromSearch, statsFromSearch });
 
     const fullUrl = target.href.startsWith("http") ? target.href : `${BASE}${target.href}`;
     await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
@@ -123,6 +133,7 @@ async function searchPlayer(name, version = null) {
     const result = parsePlayer(await page.content(), fullUrl);
     if (!result.rating)   result.rating   = ratingFromSearch;
     if (!result.position) result.position = positionFromSearch;
+    if (Object.keys(result.stats).length === 0) result.stats = statsFromSearch;
     return result;
   } finally {
     await page.close();
@@ -161,9 +172,10 @@ function parsePlayer(html, url) {
   console.log("[FUTWIZ] Stats:", stats);
   console.log("[FUTWIZ] Price snippet:", priceIdx >= 0 ? bodyText.substring(Math.max(0, priceIdx - 30), priceIdx + 80) : "NOT FOUND");
 
-  const pricePS  = consoleMatch ? consoleMatch[1] + " coins" : "N/A";
-  const priceXB  = consoleMatch ? consoleMatch[1] + " coins" : "N/A";
-  const pricePCn = pcMatch      ? pcMatch[1] + " coins"      : "N/A";
+  const fmtPrice = (val) => (!val || val === "0") ? "N/A" : val + " coins";
+  const pricePS  = fmtPrice(consoleMatch?.[1]);
+  const priceXB  = fmtPrice(consoleMatch?.[1]);
+  const pricePCn = fmtPrice(pcMatch?.[1]);
 
   return {
     name, rating, position, club, nation, cardType,
